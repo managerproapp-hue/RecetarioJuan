@@ -1,12 +1,44 @@
 <!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GastroProfesor - Gestión Gastronómica</title>
-  </head>
-  <body class="bg-gray-50 text-slate-800 font-sans antialiased">
-    <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GastroProfesor - Gestión Gastronómica</title>
+</head>
+
+<body class="bg-gray-50 text-slate-800 font-sans antialiased">
+  <style>
+    #global-error {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      color: #f00;
+      z-index: 99999;
+      padding: 20px;
+      font-family: monospace;
+      white-space: pre-wrap;
+    }
+  </style>
+  <div id="global-error"></div>
+  <script>
+    window.addEventListener('error', function (event) {
+      var errorBox = document.getElementById('global-error');
+      errorBox.style.display = 'block';
+      errorBox.textContent += 'Global Error: ' + (event.error ? event.error.stack : event.message) + '\n\n';
+    });
+    window.addEventListener('unhandledrejection', function (event) {
+      var errorBox = document.getElementById('global-error');
+      errorBox.style.display = 'block';
+      errorBox.textContent += 'Unhandled Promise: ' + event.reason + '\n\n';
+    });
+  </script>
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
 </html>

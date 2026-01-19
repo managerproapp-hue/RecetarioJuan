@@ -80,7 +80,46 @@ const defaultSettings: AppSettings = {
   categories: DEFAULT_CATEGORIES
 };
 
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: any }> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("Uncaught error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 bg-slate-900 text-white min-h-screen">
+          <h1 className="text-xl font-bold text-red-500 mb-4">Algo salió mal (Error Crítico)</h1>
+          <pre className="bg-black/50 p-4 rounded text-xs font-mono overflow-auto max-w-full">
+            {this.state.error?.toString()}
+          </pre>
+          <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-blue-600 rounded">Recargar Página</button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 function App() {
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
+  );
+}
+
+function AppContent() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -200,21 +239,19 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   useEffect(() => {
-    let updated = false;
-    let newSettings = { ...settings };
-
-    if (!newSettings.categories || newSettings.categories.length === 0) {
-      newSettings.categories = DEFAULT_CATEGORIES;
-      updated = true;
+    // Ensure critical defaults exist without causing infinite loops
+    if (!settings.categories || settings.categories.length === 0 || !settings.productFamilies || settings.productFamilies.length === 0) {
+      const newSettings = {
+        ...settings,
+        categories: (!settings.categories || settings.categories.length === 0) ? DEFAULT_CATEGORIES : settings.categories,
+        productFamilies: (!settings.productFamilies || settings.productFamilies.length === 0) ? DEFAULT_PRODUCT_FAMILIES : settings.productFamilies
+      };
+      // Only update if actually different to prevent loops
+      if (JSON.stringify(newSettings) !== JSON.stringify(settings)) {
+        setSettings(newSettings);
+      }
     }
-
-    if (!newSettings.productFamilies || newSettings.productFamilies.length === 0) {
-      newSettings.productFamilies = DEFAULT_PRODUCT_FAMILIES;
-      updated = true;
-    }
-
-    if (updated) setSettings(newSettings);
-  }, [settings.categories, settings.productFamilies, setSettings]);
+  }, [settings.categories, settings.productFamilies]);
 
   const handleEnterApp = () => setViewState('dashboard');
   const handleLogout = async () => {
