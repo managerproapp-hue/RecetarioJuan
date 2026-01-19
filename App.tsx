@@ -17,7 +17,7 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { INITIAL_PRODUCT_DATABASE } from './data/products';
 import { convertUnit } from './utils';
 import { supabase } from './lib/supabase';
-import { User } from '@supabase/supabase-js';
+import { User, AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { UserProfile } from './types';
 
 
@@ -126,14 +126,25 @@ function App() {
     }
   };
 
+  /* DEBUG STATE */
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+  const addLog = (msg: string) => setDebugLogs(prev => [msg, ...prev].slice(0, 50));
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    addLog('App mounted. Checking session...');
+
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) addLog(`getSession Error: ${error.message}`);
+      else addLog(`getSession Result: ${session ? 'Session Found' : 'No Session'}`);
+
       setUser(session?.user ?? null);
       if (session?.user) fetchOrCreateProfile(session.user);
       else setAuthLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
+      addLog(`AuthStateChange: ${event}. User: ${session?.user?.email ?? 'None'}`);
+
       setUser(session?.user ?? null);
       if (session?.user) fetchOrCreateProfile(session.user);
       else {
@@ -173,8 +184,10 @@ function App() {
       } else if (data) {
         setProfile(data);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching profile:', err);
+      // DEBUG: Show error to user
+      alert(`Error de conexión o base de datos: ${err.message || 'Desconocido'}. \n\nIMPORTANTE: ¿Ejecutaste el código SQL en Supabase para crear las tablas?`);
     } finally {
       setAuthLoading(false);
     }
@@ -284,12 +297,40 @@ function App() {
     setCurrentRecipe(null);
   };
 
+  const DebugOverlay = () => (
+    <div className="fixed bottom-4 right-4 z-[9999] w-96 max-h-96 overflow-auto bg-black/90 text-green-400 p-4 rounded-lg text-xs font-mono border border-green-500 shadow-xl opacity-90 hover:opacity-100 transition-opacity">
+      <div className="flex justify-between items-center mb-2 border-b border-green-800 pb-1">
+        <strong className="text-white">🔍 DEBUG LOG</strong>
+        <button onClick={() => setDebugLogs([])} className="text-red-400 hover:text-red-300">Clear</button>
+      </div>
+      <div className="space-y-1">
+        <div>User: {user ? user.email : 'NULL'}</div>
+        <div>Profile: {profile ? 'Loaded' : 'NULL'}</div>
+        <div>AuthLoading: {authLoading ? 'TRUE' : 'FALSE'}</div>
+        <div className="h-px bg-green-900 my-2"></div>
+        {debugLogs.map((log, i) => (
+          <div key={i} className="border-l-2 border-green-700 pl-2 opacity-80 hover:opacity-100">{log}</div>
+        ))}
+      </div>
+    </div>
+  );
+
   if (!user) {
-    return <Auth onSession={(u) => setUser(u)} />;
+    return (
+      <>
+        <Auth onSession={(u) => setUser(u)} />
+        <DebugOverlay />
+      </>
+    );
   }
 
   if (!profile?.is_approved && profile?.role !== 'admin') {
-    return <PendingApproval email={user.email || ''} onLogout={handleLogout} />;
+    return (
+      <>
+        <PendingApproval email={user.email || ''} onLogout={handleLogout} />
+        <DebugOverlay />
+      </>
+    );
   }
 
   return (
@@ -411,6 +452,8 @@ function App() {
           onLogout={handleLogout}
         />
       )}
+
+      <DebugOverlay />
     </>
   );
 }
