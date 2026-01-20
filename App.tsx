@@ -141,8 +141,25 @@ function AppContent() {
     if (!user) return;
     fetchCommunityRecipes();
 
+    // 🔄 REALTIME: Listen for community recipes changes
+    const recipesChannel = supabase
+      .channel('community-recipes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'store',
+          filter: 'key=like.recipes:%'
+        },
+        () => {
+          fetchCommunityRecipes();
+        }
+      )
+      .subscribe();
+
     // 🔄 REALTIME: Listen for profile changes (approval)
-    const channel = supabase
+    const profileChannel = supabase
       .channel(`profile:${user.id}`)
       .on(
         'postgres_changes',
@@ -161,7 +178,8 @@ function AppContent() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(recipesChannel);
+      supabase.removeChannel(profileChannel);
     };
   }, [user]);
 
