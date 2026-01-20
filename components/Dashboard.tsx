@@ -21,10 +21,11 @@ interface DashboardProps {
   onOpenAIBridge: () => void;
   onOpenAdmin: () => void;
   onLogout: () => void;
+  onUpdateRecipe?: (recipe: Recipe) => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
-  recipes, settings, savedMenus, productDatabase, currentProfile, communityRecipes = [], onNew, onEdit, onView, onDelete, onImport, onOpenSettings, onOpenMenuPlanner, onOpenProductDB, onOpenAIBridge, onOpenAdmin, onLogout
+  recipes, settings, savedMenus, productDatabase, currentProfile, communityRecipes = [], onNew, onEdit, onView, onDelete, onImport, onOpenSettings, onOpenMenuPlanner, onOpenProductDB, onOpenAIBridge, onOpenAdmin, onLogout, onUpdateRecipe
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeView, setActiveView] = useState<'personal' | 'community'>('personal');
@@ -214,13 +215,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             {cat}
                           </span>
                         ))}
-                        {recipe.isPublic ? (
+                        {activeView === 'personal' && (
+                          <div className="flex gap-1 ml-auto">
+                            <button
+                              onClick={() => onUpdateRecipe?.({ ...recipe, isPublic: false })}
+                              className={`px-2 py-1 rounded-md text-[8px] font-black uppercase flex items-center gap-1 transition-all shadow-sm ${!recipe.isPublic ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'}`}
+                            >
+                              <Lock size={8} /> Privado
+                            </button>
+                            <button
+                              onClick={() => onUpdateRecipe?.({ ...recipe, isPublic: true })}
+                              className={`px-2 py-1 rounded-md text-[8px] font-black uppercase flex items-center gap-1 transition-all shadow-sm ${recipe.isPublic ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'}`}
+                            >
+                              <Globe size={8} /> Público
+                            </button>
+                          </div>
+                        )}
+                        {activeView === 'community' && (
                           <span className="bg-emerald-50 text-emerald-600 text-[8px] font-black px-2 py-0.5 rounded-md uppercase flex items-center gap-1 shadow-sm">
                             <Globe size={8} /> Público
-                          </span>
-                        ) : (
-                          <span className="bg-slate-100 text-slate-400 text-[8px] font-black px-2 py-0.5 rounded-md uppercase flex items-center gap-1 shadow-sm">
-                            <Lock size={8} /> Privado
                           </span>
                         )}
                       </div>

@@ -512,6 +512,7 @@ function AppContent() {
           onOpenAIBridge={() => setViewState('ai-bridge')}
           onOpenAdmin={() => setViewState('admin')}
           onLogout={handleLogout}
+          onUpdateRecipe={handleSave}
         />
       )}
     </>
