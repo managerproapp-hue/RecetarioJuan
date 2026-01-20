@@ -159,7 +159,7 @@ function AppContent() {
           event: '*',
           schema: 'public',
           table: 'store',
-          filter: 'key=like.recipes:%'
+          filter: 'key=like.recipes%'
         },
         () => {
           fetchCommunityRecipes();
@@ -198,7 +198,7 @@ function AppContent() {
       const { data, error } = await supabase
         .from('store')
         .select('value')
-        .like('key', 'recipes:%');
+        .like('key', 'recipes%');
 
       if (error) throw error;
 
