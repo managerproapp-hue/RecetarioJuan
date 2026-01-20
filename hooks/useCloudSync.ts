@@ -10,19 +10,25 @@ export function useCloudSync<T>(key: string, initialValue: T, userId?: string): 
     // 1. Initial Load from Supabase
     useEffect(() => {
         async function loadData() {
+            if (!userId) {
+                setLoading(false);
+                return;
+            }
+
             try {
                 setLoading(true);
 
-                // Try scoped key first
+                // Try scoped key first (e.g. 'recipes:USER_ID')
                 let { data, error } = await supabase
                     .from('store')
                     .select('value')
                     .eq('key', scopedKey)
                     .single();
 
-                // If not found and using a scoped key, try to migrate from global key
-                if ((error && error.code === 'PGRST116') && userId) {
-                    const { data: globalData } = await supabase
+                // If not found and using a scoped key, try to migrate from global key ('recipes')
+                // code 'PGRST116' means 'no rows returned'
+                if ((error && error.code === 'PGRST116')) {
+                    const { data: globalData, error: globalError } = await supabase
                         .from('store')
                         .select('value')
                         .eq('key', key)
@@ -30,24 +36,31 @@ export function useCloudSync<T>(key: string, initialValue: T, userId?: string): 
 
                     if (globalData?.value) {
                         data = globalData;
-                        // Auto-migrate to scoped key
+                        // Auto-migrate to scoped key for the future
                         await supabase.from('store').upsert({ key: scopedKey, value: globalData.value });
                     }
+                } else if (error) {
+                    console.error(`Sync: Error loading "${scopedKey}":`, error.message);
                 }
 
                 if (data?.value) {
                     setStoredValue(data.value);
                 } else {
-                    // Check localStorage as fallback
+                    // Check localStorage as fallback (for new users or offline data)
                     const localItem = window.localStorage.getItem(scopedKey) || window.localStorage.getItem(key);
                     if (localItem) {
-                        const localValue = JSON.parse(localItem);
-                        setStoredValue(localValue);
-                        await supabase.from('store').upsert({ key: scopedKey, value: localValue });
+                        try {
+                            const localValue = JSON.parse(localItem);
+                            setStoredValue(localValue);
+                            // Push local data to cloud
+                            await supabase.from('store').upsert({ key: scopedKey, value: localValue });
+                        } catch (e) {
+                            console.error("Sync: Invalid JSON in localStorage", e);
+                        }
                     }
                 }
-            } catch (err) {
-                console.warn('Cloud load failed, using local fallback:', err);
+            } catch (err: any) {
+                console.warn('Sync Load Exception:', err.message);
             } finally {
                 setLoading(false);
             }
@@ -62,15 +75,30 @@ export function useCloudSync<T>(key: string, initialValue: T, userId?: string): 
             const valueToStore = value instanceof Function ? value(storedValue) : value;
             setStoredValue(valueToStore);
 
-            window.localStorage.setItem(scopedKey, JSON.stringify(valueToStore));
+            // 1. Local Persistence (Fast)
+            if (userId) window.localStorage.setItem(scopedKey, JSON.stringify(valueToStore));
+            window.localStorage.setItem(key, JSON.stringify(valueToStore));
 
-            const { error } = await supabase
-                .from('store')
-                .upsert({ key: scopedKey, value: valueToStore, updated_at: new Date().toISOString() });
+            // 2. Cloud Persistence (Async)
+            if (userId) {
+                const { error } = await supabase
+                    .from('store')
+                    .upsert({
+                        key: scopedKey,
+                        value: valueToStore,
+                        updated_at: new Date().toISOString()
+                    });
 
-            if (error) console.error(`Error saving cloud key "${scopedKey}":`, error);
-        } catch (error) {
-            console.warn(`Error setting key “${scopedKey}”:`, error);
+                if (error) {
+                    console.error(`Sync: Cloud Save Error for "${scopedKey}":`, error.message);
+                    // Inform the user if it's a permission/RLS issue
+                    if (error.code === '42501') {
+                        console.warn("Sync: Posible problema de permisos RLS en Supabase.");
+                    }
+                }
+            }
+        } catch (error: any) {
+            console.warn(`Sync: Exception in setValue for "${scopedKey}":`, error.message);
         }
     };
 
