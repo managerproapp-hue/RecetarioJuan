@@ -197,7 +197,7 @@ function AppContent() {
       setCommunityLoading(true);
       const { data, error } = await supabase
         .from('store')
-        .select('value')
+        .select('key, value')
         .like('key', 'recipes%');
 
       if (error) throw error;
@@ -205,9 +205,12 @@ function AppContent() {
       const allRecipes: Recipe[] = [];
       data.forEach(item => {
         if (Array.isArray(item.value)) {
+          // Extraer ID del dueño de la clave si existe (recipes:ID)
+          const ownerIdFromKey = item.key.includes(':') ? item.key.split(':')[1] : null;
           item.value.forEach((r: Recipe) => {
-            if (r.isPublic && r.ownerId !== user?.id) {
-              allRecipes.push(r);
+            // Mostramos todas las públicas (incluidas las propias para verificar que están ahí)
+            if (r.isPublic) {
+              allRecipes.push({ ...r, ownerId: r.ownerId || ownerIdFromKey });
             }
           });
         }
@@ -426,6 +429,29 @@ function AppContent() {
         });
       }
     }
+    await refreshProducts();
+
+    // --- MIGRACIÓN DE RECETAS ---
+    console.log('Migrating recipes from legacy store...');
+    const { data: legacyData, error: legacyError } = await supabase
+      .from('store')
+      .select('value')
+      .eq('key', 'recipes')
+      .single();
+
+    if (!legacyError && legacyData?.value && Array.isArray(legacyData.value)) {
+      setRecipes(prev => {
+        const merged = [...prev];
+        legacyData.value.forEach((r: Recipe) => {
+          if (!merged.some(existing => existing.id === r.id)) {
+            merged.push({ ...r, ownerId: profile.id });
+          }
+        });
+        return merged;
+      });
+      console.log(`Migrated ${legacyData.value.length} legacy recipes`);
+    }
+
     await refreshProducts();
     console.log('Manual migration finished');
   };
