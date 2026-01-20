@@ -195,18 +195,24 @@ function AppContent() {
   const fetchCommunityRecipes = async () => {
     try {
       setCommunityLoading(true);
+      console.log('[fetchCommunityRecipes] Fetching all recipes from store...');
       const { data, error } = await supabase
         .from('store')
         .select('key, value')
         .like('key', 'recipes%');
 
-      if (error) throw error;
+      if (error) {
+        console.error('[fetchCommunityRecipes] Error fetching recipes:', error);
+        throw error;
+      }
 
+      console.log(`[fetchCommunityRecipes] Found ${data?.length || 0} recipe entries in store`);
       const allRecipes: Recipe[] = [];
       data.forEach(item => {
         if (Array.isArray(item.value)) {
           // Extraer ID del dueño de la clave si existe (recipes:ID)
           const ownerIdFromKey = item.key.includes(':') ? item.key.split(':')[1] : null;
+          console.log(`[fetchCommunityRecipes] Processing key "${item.key}" with ${item.value.length} recipes`);
           item.value.forEach((r: Recipe) => {
             // Mostramos todas las públicas (incluidas las propias para verificar que están ahí)
             if (r.isPublic) {
@@ -215,9 +221,10 @@ function AppContent() {
           });
         }
       });
+      console.log(`[fetchCommunityRecipes] Found ${allRecipes.length} public recipes total`);
       setCommunityRecipes(allRecipes);
     } catch (err) {
-      console.error('Error fetching community recipes:', err);
+      console.error('[fetchCommunityRecipes] Error fetching community recipes:', err);
     } finally {
       setCommunityLoading(false);
     }

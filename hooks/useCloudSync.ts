@@ -39,35 +39,57 @@ export function useCloudSync<T>(key: string, initialValue: T, userId?: string): 
 
                 // If not found, try to migrate from global key ('recipes')
                 if (isCurrent && error && error.code === 'PGRST116') {
-                    const { data: globalData } = await supabase
+                    console.log(`[useCloudSync] Key "${scopedKey}" not found, attempting migration from "${key}"...`);
+                    const { data: globalData, error: globalError } = await supabase
                         .from('store')
                         .select('value')
                         .eq('key', key)
                         .single();
 
                     if (globalData?.value) {
+                        console.log(`[useCloudSync] Found legacy data for "${key}", migrating to "${scopedKey}"...`);
                         data = globalData;
                         // Attempt migration-upsert
-                        await supabase.from('store').upsert({ key: scopedKey, value: globalData.value });
+                        const { error: upsertError } = await supabase.from('store').upsert({ key: scopedKey, value: globalData.value });
+                        if (upsertError) {
+                            console.error(`[useCloudSync] Migration upsert failed for "${scopedKey}":`, upsertError);
+                        } else {
+                            console.log(`[useCloudSync] Successfully migrated data to "${scopedKey}"`);
+                        }
+                    } else if (globalError) {
+                        console.log(`[useCloudSync] No legacy data found for "${key}":`, globalError.message);
                     }
                 } else if (error) {
+                    console.error(`[useCloudSync] Error loading "${scopedKey}":`, error);
                     throw error;
                 }
 
                 if (!isCurrent) return;
 
                 if (data?.value !== undefined && data.value !== null) {
+                    console.log(`[useCloudSync] Successfully loaded data for "${scopedKey}" from cloud`);
                     setStoredValue(data.value);
                 } else {
+                    console.log(`[useCloudSync] No cloud data for "${scopedKey}", checking localStorage...`);
                     // Fallback to localStorage
                     const localItem = window.localStorage.getItem(scopedKey) || window.localStorage.getItem(key);
                     if (localItem && isCurrent) {
                         try {
                             const localValue = JSON.parse(localItem);
+                            console.log(`[useCloudSync] Loaded data for "${scopedKey}" from localStorage, pushing to cloud...`);
                             setStoredValue(localValue);
                             // Push local data to cloud
-                            await supabase.from('store').upsert({ key: scopedKey, value: localValue });
-                        } catch (e) { }
+                            const { error: pushError } = await supabase.from('store').upsert({ key: scopedKey, value: localValue });
+                            if (pushError) {
+                                console.error(`[useCloudSync] Failed to push localStorage data to cloud:`, pushError);
+                            } else {
+                                console.log(`[useCloudSync] Successfully pushed localStorage data to cloud for "${scopedKey}"`);
+                            }
+                        } catch (e) {
+                            console.error(`[useCloudSync] Error parsing localStorage data:`, e);
+                        }
+                    } else {
+                        console.log(`[useCloudSync] No data found in localStorage for "${scopedKey}"`);
                     }
                 }
                 // SUCCESS: Mark as loaded
