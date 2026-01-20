@@ -124,10 +124,10 @@ function AppContent() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  const [recipes, setRecipes, recipesLoading] = useCloudSync<Recipe[]>('recipes', [], user?.id);
-  const [settings, setSettings, settingsLoading] = useCloudSync<AppSettings>('appSettings', defaultSettings, user?.id);
-  const [productDatabase, setProductDatabase, productsLoading] = useCloudSync<Product[]>('productDatabase', INITIAL_PRODUCT_DATABASE, user?.id);
-  const [savedMenus, setSavedMenus, menusLoading] = useCloudSync<MenuPlan[]>('savedMenus', [], user?.id);
+  const [recipes, setRecipes, recipesLoading, recipesError] = useCloudSync<Recipe[]>('recipes', [], user?.id);
+  const [settings, setSettings, settingsLoading, settingsError] = useCloudSync<AppSettings>('appSettings', defaultSettings, user?.id);
+  const [productDatabase, setProductDatabase, productsLoading, productsError] = useCloudSync<Product[]>('productDatabase', INITIAL_PRODUCT_DATABASE, user?.id);
+  const [savedMenus, setSavedMenus, menusLoading, menusError] = useCloudSync<MenuPlan[]>('savedMenus', [], user?.id);
 
   const [communityRecipes, setCommunityRecipes] = useState<Recipe[]>([]);
   const [communityLoading, setCommunityLoading] = useState(false);
@@ -396,7 +396,7 @@ function AppContent() {
   };
 
   const DebugOverlay = () => (
-    <div className="fixed bottom-4 right-4 z-[9999] w-96 max-h-96 overflow-auto bg-black/90 text-green-400 p-4 rounded-lg text-xs font-mono border border-green-500 shadow-xl opacity-90 hover:opacity-100 transition-opacity">
+    <div className="fixed bottom-4 right-4 z-[9999] w-96 max-h-[80vh] overflow-auto bg-black/90 text-green-400 p-4 rounded-lg text-xs font-mono border border-green-500 shadow-xl opacity-90 hover:opacity-100 transition-opacity">
       <div className="flex justify-between items-center mb-2 border-b border-green-800 pb-1">
         <strong className="text-white">🔍 DEBUG LOG</strong>
         <button onClick={() => setDebugLogs([])} className="text-red-400 hover:text-red-300">Clear</button>
@@ -405,6 +405,19 @@ function AppContent() {
         <div>User: {user ? user.email : 'NULL'}</div>
         <div>Profile: {profile ? 'Loaded' : 'NULL'}</div>
         <div>AuthLoading: {authLoading ? 'TRUE' : 'FALSE'}</div>
+
+        <div className="h-px bg-green-900 my-2"></div>
+        <div className="font-bold text-amber-500 mb-1">CLOUD SYNC STATUS:</div>
+        <div className={recipesError ? 'text-red-500' : 'text-green-500'}>
+          Recetas: {recipesLoading ? '⌛' : (recipesError ? `❌ ${recipesError}` : '✅ OK')} {recipes.length}
+        </div>
+        <div className={settingsError ? 'text-red-500' : 'text-green-500'}>
+          Ajustes: {settingsLoading ? '⌛' : (settingsError ? `❌ ${settingsError}` : '✅ OK')}
+        </div>
+        <div className={productsError ? 'text-red-500' : 'text-green-500'}>
+          Ingredientes: {productsLoading ? '⌛' : (productsError ? `❌ ${productsError}` : '✅ OK')} {productDatabase.length}
+        </div>
+
         <div className="h-px bg-green-900 my-2"></div>
         {debugLogs.map((log, i) => (
           <div key={i} className="border-l-2 border-green-700 pl-2 opacity-80 hover:opacity-100">{log}</div>
