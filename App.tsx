@@ -124,6 +124,8 @@ function AppContent() {
 
   const [recipes, setRecipes, recipesLoading] = useCloudSync<Recipe[]>('recipes', [], user?.id);
   const [settings, setSettings, settingsLoading] = useCloudSync<AppSettings>('appSettings', defaultSettings, user?.id);
+
+  // 🔄 SHARED DATABASE: New unified products table
   const {
     products: productDatabase,
     loading: productsLoading,
@@ -132,10 +134,37 @@ function AppContent() {
     deleteProduct: handleDeleteProduct,
     refresh: refreshProducts
   } = useProducts(profile);
+
+  // 📦 OLD DATABASE: Only for migration purposes
+  const [oldProducts, setOldProducts, oldLoading] = useCloudSync<Product[]>('productDatabase', [], user?.id);
+
   const [savedMenus, setSavedMenus, menusLoading] = useCloudSync<MenuPlan[]>('savedMenus', [], user?.id);
 
   const [communityRecipes, setCommunityRecipes] = useState<Recipe[]>([]);
   const [communityLoading, setCommunityLoading] = useState(false);
+
+  // 🚀 AUTO-MIGRATION: If admin logs in and has old products, migrate them to the shared table
+  useEffect(() => {
+    if (profile?.role === 'admin' && oldProducts.length > 0 && productDatabase.length <= 1) {
+      const migrate = async () => {
+        console.log('Migrating old products to shared database...');
+        for (const p of oldProducts) {
+          // Check if already exists (simple name check) to avoid duplicates
+          if (!productDatabase.some(existing => existing.name.toLowerCase() === p.name.toLowerCase())) {
+            await handleAddProduct({
+              ...p,
+              is_approved: true, // Admin products are pre-approved
+              created_by: profile.id
+            });
+          }
+        }
+        // After migration, we could clear oldProducts, but better to keep them for safety and just rely on the count check
+        console.log('Migration complete');
+        refreshProducts();
+      };
+      migrate();
+    }
+  }, [profile, oldProducts, productDatabase.length]);
 
   useEffect(() => {
     if (!user) return;
