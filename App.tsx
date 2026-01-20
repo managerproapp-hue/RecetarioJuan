@@ -143,35 +143,8 @@ function AppContent() {
   const [communityRecipes, setCommunityRecipes] = useState<Recipe[]>([]);
   const [communityLoading, setCommunityLoading] = useState(false);
 
-  // 🚀 AUTO-MIGRATION: If admin logs in and has old products, migrate them to the shared table
-  const migrationStarted = useRef(false);
-  useEffect(() => {
-    if (profile?.role === 'admin' && !oldLoading && !productsLoading && oldProducts.length > 0 && productDatabase.length <= 1 && !migrationStarted.current) {
-      migrationStarted.current = true;
-      const migrate = async () => {
-        console.log('Migrating old products to shared database...');
-        try {
-          for (const p of oldProducts) {
-            // Check if already exists (simple name check) to avoid duplicates
-            const alreadyExists = productDatabase.some(existing => existing.name.toLowerCase() === p.name.toLowerCase());
-            if (!alreadyExists) {
-              await handleAddProduct({
-                ...p,
-                is_approved: true,
-                created_by: profile.id
-              });
-            }
-          }
-          console.log('Migration complete');
-          refreshProducts();
-        } catch (err) {
-          console.error('Migration failed:', err);
-          migrationStarted.current = false; // Allow retry on next render if failed
-        }
-      };
-      migrate();
-    }
-  }, [profile, oldProducts, productsLoading, oldLoading]);
+  // 🚀 MIGRATION LOGIC REMOVED: To prevent duplicates and instability.
+  // We will add a manual trigger button in the Admin Dashboard instead.
 
   useEffect(() => {
     if (!user) return;
@@ -438,6 +411,25 @@ function AppContent() {
     setCurrentRecipe(null);
   };
 
+  const handleMigrate = async () => {
+    if (!profile || profile.role !== 'admin') return;
+    console.log('Manual migration started...');
+    await refreshProducts();
+
+    for (const p of oldProducts) {
+      const alreadyExists = productDatabase.some(existing => existing.name.toLowerCase() === p.name.toLowerCase());
+      if (!alreadyExists) {
+        await handleAddProduct({
+          ...p,
+          is_approved: true,
+          created_by: profile.id
+        });
+      }
+    }
+    await refreshProducts();
+    console.log('Manual migration finished');
+  };
+
   if (!user) {
     return <Auth onSession={(u) => setUser(u)} />;
   }
@@ -546,6 +538,7 @@ function AppContent() {
             setCurrentRecipe(migrateRecipeIfNeeded(recipe));
             setViewState('view');
           }}
+          onMigrate={handleMigrate}
         />
       ) : (
         <Dashboard
