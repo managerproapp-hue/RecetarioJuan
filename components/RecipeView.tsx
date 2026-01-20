@@ -29,6 +29,13 @@ export const RecipeView: React.FC<RecipeViewProps> = ({ recipe, onBack, settings
     return Array.from(set);
   }, [recipe]);
 
+  // Set document title for PDF filename
+  React.useEffect(() => {
+    const originalTitle = document.title;
+    document.title = `Ficha - ${recipe.name.toUpperCase()}`;
+    return () => { document.title = originalTitle; };
+  }, [recipe.name]);
+
   const scaleQuantity = (qtyStr: string): string => {
     const num = parseQuantity(qtyStr);
     if (num <= 0) return qtyStr;
@@ -67,7 +74,7 @@ export const RecipeView: React.FC<RecipeViewProps> = ({ recipe, onBack, settings
               onClick={() => window.print()}
               className="px-6 py-3 bg-white text-slate-900 border border-slate-200 rounded-2xl hover:bg-slate-50 flex items-center gap-2 shadow-sm font-black uppercase text-[10px] tracking-widest transition-all"
             >
-              <Download size={18} /> Exportar PDF
+              <Download size={18} /> Guardar Receta (PDF)
             </button>
           </div>
         </div>
@@ -146,13 +153,13 @@ export const RecipeView: React.FC<RecipeViewProps> = ({ recipe, onBack, settings
           </div>
 
           {recipe.subRecipes.map((sub, sIdx) => (
-            <div key={sub.id} className="grid grid-cols-1 md:grid-cols-12 print:grid print:grid-cols-12 border border-slate-200 rounded-xl overflow-hidden shadow-sm break-inside-avoid bg-white">
+            <div key={sub.id} className="grid grid-cols-1 lg:grid-cols-12 print:grid-cols-12 border border-slate-200 rounded-xl overflow-hidden shadow-sm break-inside-avoid bg-white">
               <div className="col-span-12 bg-slate-50 px-4 py-2 border-b border-slate-200 flex items-center gap-2">
                 <span className="bg-slate-900 text-white w-5 h-5 flex items-center justify-center rounded text-[9px] font-bold">{sIdx + 1}</span>
                 <h4 className="text-[11px] font-black text-slate-800 uppercase">{sub.name}</h4>
               </div>
 
-              <div className="col-span-4 print:col-span-4 p-4 border-r border-slate-100 bg-slate-50/30">
+              <div className="col-span-1 lg:col-span-4 print:col-span-4 p-4 border-r border-slate-100 bg-slate-50/30">
                 <h5 className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1"><Utensils size={10} /> Ingredientes</h5>
                 <table className="w-full text-[10px] text-slate-700">
                   <tbody className="divide-y divide-slate-100 border-t border-slate-100">
@@ -166,7 +173,7 @@ export const RecipeView: React.FC<RecipeViewProps> = ({ recipe, onBack, settings
                 </table>
               </div>
 
-              <div className="col-span-8 print:col-span-8 p-4">
+              <div className="col-span-1 lg:col-span-8 print:col-span-8 p-4">
                 <h5 className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1"><Info size={10} /> Procedimiento</h5>
                 <div className="text-[11px] text-slate-700 leading-relaxed whitespace-pre-wrap font-serif">
                   {sub.instructions || "Sin instrucciones detalladas."}

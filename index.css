@@ -7,34 +7,82 @@
 @layer base {
   @media print {
     @page {
-      margin: 1.5cm;
+      margin: 1cm;
       size: portrait;
-      @bottom-center {
-        content: "Página " counter(page) " de " counter(pages);
-        font-family: 'Inter', sans-serif;
-        font-size: 9px;
-        color: #94a3b8;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-      }
     }
 
     .no-print {
       display: none !important;
     }
 
-    .print-only {
-      display: block !important;
-    }
-
     body {
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-      background: white;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      background: white !important;
+      font-size: 11pt;
+      /* Base print size */
     }
 
-    .page-break {
-      page-break-before: always;
+    h1 {
+      font-size: 24pt !important;
+      margin-bottom: 0.5cm !important;
+    }
+
+    h3 {
+      font-size: 10pt !important;
+      margin-bottom: 0.3cm !important;
+    }
+
+    h4 {
+      font-size: 10pt !important;
+    }
+
+    img {
+      max-height: 4cm !important;
+      width: auto !important;
+    }
+
+    .h-16 {
+      height: 1.2cm !important;
+    }
+
+    /* Restore logos size */
+
+    .grid {
+      gap: 0.5cm !important;
+    }
+
+    .gap-8 {
+      gap: 0.4cm !important;
+    }
+
+    .p-8 {
+      padding: 0.5cm !important;
+    }
+
+    .p-6 {
+      padding: 0.4cm !important;
+    }
+
+    .mb-8 {
+      margin-bottom: 0.4cm !important;
+    }
+
+    .mt-8 {
+      margin-top: 0.4cm !important;
+    }
+
+    /* Prevent awkward breaks */
+    .break-inside-avoid {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+
+    /* Force background colors on print for boxes */
+    .bg-slate-50,
+    .bg-slate-900,
+    .bg-amber-500 {
+      -webkit-print-color-adjust: exact !important;
     }
   }
 }
