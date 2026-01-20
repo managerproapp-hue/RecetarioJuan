@@ -88,7 +88,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onViewRe
                 .eq('id', profile.id);
 
             if (error) throw error;
-            // setProfiles is now handled by REALTIME listener above
+
+            // 🔄 OPTIMISTIC UPDATE: Update local state immediately 
+            // so the user sees the change even if Realtime takes a second.
+            setProfiles(prev => prev.map(p => p.id === profile.id ? { ...p, is_approved: newStatus } : p));
         } catch (err) {
             alert('Error al actualizar estado del usuario');
         }

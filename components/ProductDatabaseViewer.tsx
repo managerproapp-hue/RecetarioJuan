@@ -12,6 +12,7 @@ interface ProductDatabaseViewerProps {
   onImport: (products: Product[]) => void;
   settings?: AppSettings;
   onSettingsChange?: (settings: AppSettings) => void;
+  currentProfile?: any;
 }
 
 const ALLERGEN_CODE_MAP: Record<string, Allergen> = {
@@ -35,8 +36,9 @@ const parseSmartPrice = (val: any): number => {
 };
 
 export const ProductDatabaseViewer: React.FC<ProductDatabaseViewerProps> = ({
-  products, onBack, onAdd, onEdit, onDelete, onImport, settings, onSettingsChange
+  products, onBack, onAdd, onEdit, onDelete, onImport, settings, onSettingsChange, currentProfile
 }) => {
+  const isAdmin = currentProfile?.role === 'admin';
   const [searchTerm, setSearchTerm] = useState('');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -287,7 +289,14 @@ export const ProductDatabaseViewer: React.FC<ProductDatabaseViewerProps> = ({
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
-                      <span className="font-black text-slate-800 uppercase text-xs tracking-tight">{product.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-black text-slate-800 uppercase text-xs tracking-tight">{product.name}</span>
+                        {!product.is_approved && (
+                          <span className="bg-amber-100 text-amber-600 text-[7px] font-black px-1.5 py-0.5 rounded uppercase flex items-center gap-1 animate-pulse">
+                            <AlertCircle size={8} /> Pendiente
+                          </span>
+                        )}
+                      </div>
                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest opacity-70">
                         {product.category || 'SIN FAMILIA'}
                       </span>
@@ -308,10 +317,23 @@ export const ProductDatabaseViewer: React.FC<ProductDatabaseViewerProps> = ({
                       ) : <Check size={14} className="text-green-300 opacity-50" />}
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                      <button onClick={() => { setEditingProduct({ ...product }); setIsCreating(false); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"><Edit2 size={16} /></button>
-                      <button onClick={() => confirm(`¿Borrar ${product.name}?`) && onDelete(product.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={16} /></button>
+                  <td className="px-6 py-4">
+                    <div className="flex justify-end gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-all">
+                      {isAdmin && !product.is_approved && (
+                        <button
+                          onClick={() => onEdit({ ...product, is_approved: true })}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg font-black text-[9px] uppercase hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                        >
+                          <Check size={14} /> Aprobar
+                        </button>
+                      )}
+
+                      {(isAdmin || product.created_by === currentProfile?.id) && (
+                        <>
+                          <button onClick={() => { setEditingProduct({ ...product }); setIsCreating(false); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"><Edit2 size={16} /></button>
+                          <button onClick={() => confirm(`¿Borrar ${product.name}?`) && onDelete(product.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={16} /></button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>

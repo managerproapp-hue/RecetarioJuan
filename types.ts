@@ -34,6 +34,8 @@ export interface Product {
   category?: string;
   unit: string;
   pricePerUnit: number;
+  is_approved?: boolean;
+  created_by?: string;
 }
 
 export interface Ingredient {

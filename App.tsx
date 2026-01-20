@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Recipe, AppSettings, AppBackup, Product, MenuPlan, DEFAULT_CATEGORIES, DEFAULT_PRODUCT_FAMILIES, SubRecipe } from './types';
 import { useCloudSync } from './hooks/useCloudSync';
+import { useProducts } from './hooks/useProducts';
 import { CookingMode } from './components/CookingMode';
 import { Dashboard } from './components/Dashboard';
 import { RecipeEditor } from './components/RecipeEditor';
@@ -123,7 +124,14 @@ function AppContent() {
 
   const [recipes, setRecipes, recipesLoading] = useCloudSync<Recipe[]>('recipes', [], user?.id);
   const [settings, setSettings, settingsLoading] = useCloudSync<AppSettings>('appSettings', defaultSettings, user?.id);
-  const [productDatabase, setProductDatabase, productsLoading] = useCloudSync<Product[]>('productDatabase', INITIAL_PRODUCT_DATABASE, user?.id);
+  const {
+    products: productDatabase,
+    loading: productsLoading,
+    addProduct: handleAddProduct,
+    updateProduct: handleUpdateProduct,
+    deleteProduct: handleDeleteProduct,
+    refresh: refreshProducts
+  } = useProducts(profile);
   const [savedMenus, setSavedMenus, menusLoading] = useCloudSync<MenuPlan[]>('savedMenus', [], user?.id);
 
   const [communityRecipes, setCommunityRecipes] = useState<Recipe[]>([]);
@@ -403,7 +411,9 @@ function AppContent() {
         onRestore={(backup) => {
           setRecipes(backup.recipes);
           setSettings(backup.settings);
-          if (backup.productDatabase) setProductDatabase(backup.productDatabase);
+          if (backup.productDatabase && profile?.role === 'admin') {
+            backup.productDatabase.forEach(p => handleAddProduct(p));
+          }
           if (backup.savedMenus) setSavedMenus(backup.savedMenus);
           alert('Copia de seguridad restaurada correctamente.');
         }}
@@ -425,7 +435,7 @@ function AppContent() {
           settings={settings}
           onSave={handleSave}
           onCancel={() => setViewState('dashboard')}
-          onAddProduct={(p) => setProductDatabase(prev => [p, ...prev])}
+          onAddProduct={handleAddProduct}
         />
       ) : viewState === 'ai-bridge' ? (
         <AIBridge
@@ -460,19 +470,20 @@ function AppContent() {
         <ProductDatabaseViewer
           products={productDatabase}
           onBack={() => setViewState('dashboard')}
-          onAdd={(p) => setProductDatabase([p, ...productDatabase])}
-          onEdit={(p) => {
-            const updatedProducts = productDatabase.map(old => old.id === p.id ? p : old);
-            setProductDatabase(updatedProducts);
-            setRecipes(syncRecipesWithProducts(recipes, updatedProducts));
-          }}
-          onDelete={(id) => setProductDatabase(productDatabase.filter(p => p.id !== id))}
-          onImport={(list) => {
-            setProductDatabase([...list]);
-            setRecipes(syncRecipesWithProducts(recipes, list));
+          onAdd={handleAddProduct}
+          onEdit={handleUpdateProduct}
+          onDelete={handleDeleteProduct}
+          onImport={async (list) => {
+            // Bulk import for Admin only
+            if (profile?.role === 'admin') {
+              for (const p of list) {
+                await handleAddProduct(p);
+              }
+            }
           }}
           settings={settings}
           onSettingsChange={setSettings}
+          currentProfile={profile}
         />
       ) : viewState === 'admin' ? (
         <AdminDashboard

@@ -28,6 +28,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeView, setActiveView] = useState<'personal' | 'community'>('personal');
+  const [visibleCount, setVisibleCount] = useState(20);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const displayRecipes = activeView === 'personal' ? recipes : communityRecipes;
@@ -37,6 +38,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
   (r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (Array.isArray(r.category) ? r.category.some(c => c.toLowerCase().includes(searchTerm.toLowerCase())) : (r.category as string).toLowerCase().includes(searchTerm.toLowerCase())))
   );
+
+  const paginatedRecipes = filteredRecipes.slice(0, visibleCount);
+  const hasMore = filteredRecipes.length > visibleCount;
+
+  // Reset pagination when searching or switching views
+  React.useEffect(() => {
+    setVisibleCount(20);
+  }, [searchTerm, activeView]);
 
   const handleImportClick = () => fileInputRef.current?.click();
 
@@ -174,80 +183,121 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       <div className="max-w-7xl mx-auto px-6 mt-12">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
-          {filteredRecipes.length > 0 ? filteredRecipes.map(recipe => {
+        <div className="flex flex-col gap-4">
+          {paginatedRecipes.length > 0 ? paginatedRecipes.map(recipe => {
             const costPerPortion = recipe.totalCost && recipe.yieldQuantity ? (recipe.totalCost / recipe.yieldQuantity).toFixed(2) : '0.00';
             return (
-              <div key={recipe.id} className="bg-white rounded-[2rem] shadow-sm hover:shadow-2xl transition-all duration-500 border border-slate-100/80 overflow-hidden flex flex-col group relative">
-                <div className="aspect-square relative overflow-hidden bg-slate-50">
+              <div key={recipe.id} className="bg-white rounded-3xl shadow-sm hover:shadow-xl transition-all duration-500 border border-slate-100/80 overflow-hidden flex group relative p-4 items-center gap-6">
+                {/* Imagen Lateral Pequeña */}
+                <div className="w-24 h-24 rounded-2xl overflow-hidden bg-slate-50 shrink-0 relative">
                   {recipe.photo ? (
                     <img src={recipe.photo} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center opacity-10 bg-gradient-to-br from-slate-100 to-slate-200">
-                      <ChefHat size={40} className="text-slate-400" />
+                    <div className="w-full h-full flex items-center justify-center opacity-10">
+                      <ChefHat size={30} className="text-slate-400" />
                     </div>
                   )}
-
-                  <div className="absolute top-3 left-3 flex flex-wrap gap-1">
-                    {(Array.isArray(recipe.category) ? recipe.category : [recipe.category]).slice(0, 2).map((cat, ci) => (
-                      <span key={ci} className="bg-slate-900/80 backdrop-blur-md text-white text-[7px] font-black px-2 py-1 rounded-md uppercase tracking-wider shadow-lg border border-white/10">
-                        {cat}
-                      </span>
-                    ))}
-                    {recipe.isPublic ? (
-                      <span className="bg-indigo-600/90 backdrop-blur-md text-white text-[7px] font-black px-2 py-1 rounded-md uppercase tracking-wider shadow-lg border border-white/10 flex items-center gap-1">
-                        <Globe size={8} /> Público
-                      </span>
-                    ) : (
-                      <span className="bg-slate-900/40 backdrop-blur-md text-white/50 text-[7px] font-black px-2 py-1 rounded-md uppercase tracking-wider shadow-lg border border-white/5 flex items-center gap-1">
-                        <Lock size={8} /> Privado
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 flex flex-col gap-1.5">
-                    {activeView === 'personal' && (
-                      <>
-                        <button onClick={() => onEdit(recipe)} className="p-2.5 bg-white text-blue-600 rounded-xl shadow-xl hover:bg-blue-600 hover:text-white transition-all active:scale-90"><Edit2 size={13} /></button>
-                        <button onClick={() => confirm(`¿Borrar ${recipe.name}?`) && onDelete(recipe.id)} className="p-2.5 bg-white text-rose-500 rounded-xl shadow-xl hover:bg-rose-500 hover:text-white transition-all active:scale-90"><Trash2 size={13} /></button>
-                      </>
-                    )}
-                  </div>
-
-                  <div className="absolute bottom-3 right-3">
-                    <div className="bg-emerald-500 text-white text-[9px] font-black px-2.5 py-1.5 rounded-xl shadow-xl uppercase tracking-tighter flex items-center gap-1.5 border border-white/20">
-                      <Coins size={10} /> {costPerPortion}€
-                    </div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <button onClick={() => onView(recipe)} className="p-2 bg-white/20 backdrop-blur-md rounded-full text-white">
+                      <Eye size={16} />
+                    </button>
                   </div>
                 </div>
 
-                <div className="p-3 flex-grow flex flex-col justify-between space-y-2">
-                  <div>
-                    <h3 className="text-[9px] font-black text-slate-800 leading-tight uppercase tracking-tight line-clamp-2 group-hover:text-indigo-600 transition-colors">{recipe.name}</h3>
-                    <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest mt-1 flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
-                      <Users size={7} /> {recipe.yieldQuantity} PAX
-                    </p>
-                  </div>
+                {/* Contenido Principal */}
+                <div className="flex-grow min-w-0">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {(Array.isArray(recipe.category) ? recipe.category : [recipe.category]).slice(0, 2).map((cat, ci) => (
+                          <span key={ci} className="bg-slate-100 text-slate-500 text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider">
+                            {cat}
+                          </span>
+                        ))}
+                        {recipe.isPublic ? (
+                          <span className="bg-emerald-50 text-emerald-600 text-[8px] font-black px-2 py-0.5 rounded-md uppercase flex items-center gap-1 shadow-sm">
+                            <Globe size={8} /> Público
+                          </span>
+                        ) : (
+                          <span className="bg-slate-100 text-slate-400 text-[8px] font-black px-2 py-0.5 rounded-md uppercase flex items-center gap-1 shadow-sm">
+                            <Lock size={8} /> Privado
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="text-lg font-black text-slate-800 leading-tight uppercase tracking-tight truncate group-hover:text-indigo-600 transition-colors">
+                        {recipe.name}
+                      </h3>
+                      <div className="flex items-center gap-4 mt-2">
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                          <Users size={10} /> {recipe.yieldQuantity} raciones
+                        </p>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 border-l border-slate-200 pl-4">
+                          <ChefHat size={10} /> {recipe.creator || settings.teacherName}
+                        </p>
+                      </div>
+                    </div>
 
-                  <div className="pt-2 border-t border-slate-50 flex items-center justify-between">
-                    <p className="text-[6px] font-black text-slate-300 uppercase truncate max-w-[50%]">{recipe.creator || settings.teacherName}</p>
-                    <button onClick={() => onView(recipe)} className="flex items-center gap-1 text-[7px] font-black text-indigo-500 hover:text-indigo-700 uppercase tracking-widest transition-all group/btn">
-                      Ver <Eye size={10} className="group-hover/btn:translate-x-0.5 transition-transform" />
-                    </button>
+                    <div className="flex items-center gap-6">
+                      <div className="text-right hidden sm:block">
+                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Coste Ración</p>
+                        <div className="bg-emerald-50 text-emerald-600 text-base font-black px-4 py-1.5 rounded-xl flex items-center gap-2">
+                          <Coins size={14} /> {costPerPortion}€
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {activeView === 'personal' && (
+                          <>
+                            <button
+                              onClick={() => onEdit(recipe)}
+                              className="p-3 bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 rounded-2xl transition-all"
+                              title="Editar"
+                            >
+                              <Edit2 size={18} />
+                            </button>
+                            <button
+                              onClick={() => confirm(`¿Borrar ${recipe.name}?`) && onDelete(recipe.id)}
+                              className="p-3 bg-slate-50 text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-2xl transition-all"
+                              title="Eliminar"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </>
+                        )}
+                        <button
+                          onClick={() => onView(recipe)}
+                          className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-lg shadow-indigo-500/10 transition-all flex items-center gap-2"
+                        >
+                          Ver Ficha <Eye size={14} />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             );
-          }) : (
-            <div className="col-span-full py-32 text-center bg-white rounded-[3rem] border-2 border-dashed border-slate-200">
-              <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-                <ChefHat size={40} className="text-slate-200" strokeWidth={1} />
+          })
+            : (
+              <div className="col-span-full py-32 text-center bg-white rounded-[3rem] border-2 border-dashed border-slate-200">
+                <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <ChefHat size={40} className="text-slate-200" strokeWidth={1} />
+                </div>
+                <p className="text-slate-400 font-black uppercase tracking-[0.3em] text-[10px]">No se han encontrado recetas</p>
+                <button onClick={onNew} className="mt-6 text-indigo-600 font-black uppercase text-[10px] tracking-widest hover:text-indigo-800 transition-colors">+ Crear mi primera ficha</button>
               </div>
-              <p className="text-slate-400 font-black uppercase tracking-[0.3em] text-[10px]">No se han encontrado recetas</p>
-              <button onClick={onNew} className="mt-6 text-indigo-600 font-black uppercase text-[10px] tracking-widest hover:text-indigo-800 transition-colors">+ Crear mi primera ficha</button>
-            </div>
-          )}
+            )}
         </div>
+
+        {hasMore && (
+          <div className="mt-12 flex justify-center">
+            <button
+              onClick={() => setVisibleCount(prev => prev + 10)}
+              className="flex items-center gap-3 px-10 py-5 bg-white border border-slate-200 hover:border-amber-500 text-slate-600 hover:text-amber-600 font-black rounded-3xl shadow-sm hover:shadow-xl transition-all active:scale-95 uppercase text-[10px] tracking-[0.2em]"
+            >
+              <Plus size={20} /> Cargar 10 más
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
