@@ -17,12 +17,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onViewRe
 
     useEffect(() => {
         fetchData();
+
+        // 🔄 REALTIME: Keep profiles synced across all admin sessions
+        const channel = supabase
+            .channel('admin-profiles-sync')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'profiles' },
+                (payload) => {
+                    if (payload.eventType === 'INSERT') {
+                        setProfiles(prev => [payload.new as UserProfile, ...prev]);
+                    } else if (payload.eventType === 'UPDATE') {
+                        setProfiles(prev => prev.map(p => p.id === payload.new.id ? { ...p, ...payload.new } : p));
+                    } else if (payload.eventType === 'DELETE') {
+                        setProfiles(prev => prev.filter(p => p.id === payload.old.id));
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, []);
 
     const fetchData = async () => {
         try {
             setLoading(true);
-            // Fetch Profiles
             const { data: profs, error: profError } = await supabase
                 .from('profiles')
                 .select('*')
@@ -31,7 +52,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onViewRe
             if (profError) throw profError;
             setProfiles(profs || []);
 
-            // Fetch All Recipes from all users
             const { data: stores, error: storeError } = await supabase
                 .from('store')
                 .select('key, value')
@@ -60,6 +80,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onViewRe
 
     const handleToggleApproval = async (profile: UserProfile) => {
         try {
+            // Use the MOST RECENT state from the table to avoid toggle wars
             const newStatus = !profile.is_approved;
             const { error } = await supabase
                 .from('profiles')
@@ -67,7 +88,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onViewRe
                 .eq('id', profile.id);
 
             if (error) throw error;
-            setProfiles(prev => prev.map(p => p.id === profile.id ? { ...p, is_approved: newStatus } : p));
+            // setProfiles is now handled by REALTIME listener above
         } catch (err) {
             alert('Error al actualizar estado del usuario');
         }
