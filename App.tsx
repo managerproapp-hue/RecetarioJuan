@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Recipe, AppSettings, AppBackup, Product, MenuPlan, DEFAULT_CATEGORIES, DEFAULT_PRODUCT_FAMILIES, SubRecipe } from './types';
 import { useCloudSync } from './hooks/useCloudSync';
@@ -31,8 +30,6 @@ const syncRecipesWithProducts = (recipes: Recipe[], products: Product[]): Recipe
         if (product) {
           const qtyNum = parseFloat(ing.quantity.replace(',', '.'));
           if (!isNaN(qtyNum)) {
-            // Respect the RECIPE'S unit. Calculate price relative to that unit.
-            // Formula: PriceInRecipeUnit = PriceInProductUnit * Convert(1, RecipeUnit, ProductUnit)
             const factor = convertUnit(1, ing.unit, product.unit);
             const priceInRecipeUnit = product.pricePerUnit * factor;
             const newCost = qtyNum * priceInRecipeUnit;
@@ -124,10 +121,10 @@ function AppContent() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  const [recipes, setRecipes, recipesLoading, recipesError] = useCloudSync<Recipe[]>('recipes', [], user?.id);
-  const [settings, setSettings, settingsLoading, settingsError] = useCloudSync<AppSettings>('appSettings', defaultSettings, user?.id);
-  const [productDatabase, setProductDatabase, productsLoading, productsError] = useCloudSync<Product[]>('productDatabase', INITIAL_PRODUCT_DATABASE, user?.id);
-  const [savedMenus, setSavedMenus, menusLoading, menusError] = useCloudSync<MenuPlan[]>('savedMenus', [], user?.id);
+  const [recipes, setRecipes, recipesLoading] = useCloudSync<Recipe[]>('recipes', [], user?.id);
+  const [settings, setSettings, settingsLoading] = useCloudSync<AppSettings>('appSettings', defaultSettings, user?.id);
+  const [productDatabase, setProductDatabase, productsLoading] = useCloudSync<Product[]>('productDatabase', INITIAL_PRODUCT_DATABASE, user?.id);
+  const [savedMenus, setSavedMenus, menusLoading] = useCloudSync<MenuPlan[]>('savedMenus', [], user?.id);
 
   const [communityRecipes, setCommunityRecipes] = useState<Recipe[]>([]);
   const [communityLoading, setCommunityLoading] = useState(false);
@@ -135,6 +132,29 @@ function AppContent() {
   useEffect(() => {
     if (!user) return;
     fetchCommunityRecipes();
+
+    // 🔄 REALTIME: Listen for profile changes (approval)
+    const channel = supabase
+      .channel(`profile:${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`
+        },
+        (payload) => {
+          if (payload.new) {
+            setProfile(payload.new as UserProfile);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   const fetchCommunityRecipes = async () => {
@@ -165,84 +185,55 @@ function AppContent() {
     }
   };
 
-  /* DEBUG STATE */
-  const [debugLogs, setDebugLogs] = useState<string[]>([]);
-  const addLog = (msg: string) => setDebugLogs(prev => [msg, ...prev].slice(0, 50));
-
   useEffect(() => {
-    addLog('App mounted. Checking session...');
-
     const initSession = async () => {
-      // 1. HEADER: Check for PKCE Code (query param) - Supabase v2 Default
-      // Because detectSessionInUrl is false, we MUST handle this manually if present
       const params = new URLSearchParams(window.location.search);
       const code = params.get('code');
 
       if (code) {
-        addLog(`PKCE Code Detected. Exchanging...`);
         try {
-          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+          const { data } = await supabase.auth.exchangeCodeForSession(code);
           if (data.session) {
-            addLog(`PKCE Success: ${data.session.user.email}`);
             setUser(data.session.user);
             fetchOrCreateProfile(data.session.user);
-            // Clean URL
             window.history.replaceState({}, '', window.location.origin + window.location.pathname);
             return;
           }
-          if (error) addLog(`PKCE Error: ${error.message}`);
-        } catch (err: any) {
-          addLog(`PKCE Exception: ${err.message}`);
-        }
+        } catch (err: any) { }
       }
 
-      // 2. Standard Session Check (Storage)
-      const { data: { session }, error } = await supabase.auth.getSession();
-
+      const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        addLog(`getSession Success: ${session.user.email}`);
         setUser(session.user);
         fetchOrCreateProfile(session.user);
         return;
       }
 
-      if (error) addLog(`getSession Error: ${error.message}`);
-      else addLog('getSession Result: No Session');
-
-      // 3. Implicit Flow Check (Hash) - Fallback for older auth flows
       const hash = window.location.hash;
       if (hash && hash.includes('access_token')) {
-        addLog('Hash Detected. Attempting Manual Recovery...');
         const params = new URLSearchParams(hash.replace('#', ''));
         const access_token = params.get('access_token');
         const refresh_token = params.get('refresh_token');
 
         if (access_token) {
-          const { data, error } = await supabase.auth.setSession({
+          const { data } = await supabase.auth.setSession({
             access_token,
             refresh_token: refresh_token || ''
           });
 
           if (data.session) {
-            addLog(`Manual Recovery Success: ${data.session.user.email}`);
             setUser(data.session.user);
             fetchOrCreateProfile(data.session.user);
             return;
           }
-          if (error) addLog(`Manual Recovery Error: ${error.message}`);
         }
       }
-
-      // If we reached here, no valid session was found
       setAuthLoading(false);
     };
 
     initSession();
 
-    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
-      addLog(`AuthStateChange: ${event}. User: ${session?.user?.email ?? 'None'}`);
-
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         setUser(session?.user ?? null);
         if (session?.user) fetchOrCreateProfile(session.user);
@@ -270,15 +261,12 @@ function AppContent() {
         const newProfile: UserProfile = {
           id: user.id,
           email: user.email || '',
-          is_approved: isAdmin, // Admin is auto-approved
+          is_approved: isAdmin,
           role: isAdmin ? 'admin' : 'user',
           created_at: new Date().toISOString(),
         };
 
-        const { error: insertError } = await supabase
-          .from('profiles')
-          .insert(newProfile);
-
+        const { error: insertError } = await supabase.from('profiles').insert(newProfile);
         if (insertError) throw insertError;
         setProfile(newProfile);
       } else if (data) {
@@ -286,8 +274,6 @@ function AppContent() {
       }
     } catch (err: any) {
       console.error('Error fetching profile:', err);
-      // DEBUG: Show error to user
-      alert(`Error de conexión o base de datos: ${err.message || 'Desconocido'}. \n\nIMPORTANTE: ¿Ejecutaste el código SQL en Supabase para crear las tablas?`);
     } finally {
       setAuthLoading(false);
     }
@@ -300,14 +286,12 @@ function AppContent() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   useEffect(() => {
-    // Ensure critical defaults exist without causing infinite loops
     if (!settings.categories || settings.categories.length === 0 || !settings.productFamilies || settings.productFamilies.length === 0) {
       const newSettings = {
         ...settings,
         categories: (!settings.categories || settings.categories.length === 0) ? DEFAULT_CATEGORIES : settings.categories,
         productFamilies: (!settings.productFamilies || settings.productFamilies.length === 0) ? DEFAULT_PRODUCT_FAMILIES : settings.productFamilies
       };
-      // Only update if actually different to prevent loops
       if (JSON.stringify(newSettings) !== JSON.stringify(settings)) {
         setSettings(newSettings);
       }
@@ -330,15 +314,12 @@ function AppContent() {
 
   interface LegacyRecipe extends Omit<Recipe, 'subRecipes'> {
     subRecipes?: LegacySubRecipe[];
-    // Fields from very old versions
     ingredients?: any[];
     instructions?: string;
   }
 
   const migrateRecipeIfNeeded = (r: Recipe): Recipe => {
     const legacy = r as unknown as LegacyRecipe;
-
-    // Migración de photo individual a photos[] en subRecetas
     const updatedSubRecipes = (legacy.subRecipes || []).map((sr) => {
       if (sr.photo !== undefined && sr.photos === undefined) {
         return {
@@ -395,53 +376,12 @@ function AppContent() {
     setCurrentRecipe(null);
   };
 
-  const DebugOverlay = () => (
-    <div className="fixed bottom-4 right-4 z-[9999] w-96 max-h-[80vh] overflow-auto bg-black/90 text-green-400 p-4 rounded-lg text-xs font-mono border border-green-500 shadow-xl opacity-90 hover:opacity-100 transition-opacity">
-      <div className="flex justify-between items-center mb-2 border-b border-green-800 pb-1">
-        <strong className="text-white">🔍 DEBUG LOG</strong>
-        <button onClick={() => setDebugLogs([])} className="text-red-400 hover:text-red-300">Clear</button>
-      </div>
-      <div className="space-y-1">
-        <div>User: {user ? user.email : 'NULL'}</div>
-        <div>Profile: {profile ? 'Loaded' : 'NULL'}</div>
-        <div>AuthLoading: {authLoading ? 'TRUE' : 'FALSE'}</div>
-
-        <div className="h-px bg-green-900 my-2"></div>
-        <div className="font-bold text-amber-500 mb-1">CLOUD SYNC STATUS:</div>
-        <div className={recipesError ? 'text-red-500' : 'text-green-500'}>
-          Recetas: {recipesLoading ? '⌛' : (recipesError ? `❌ ${recipesError}` : '✅ OK')} {recipes.length}
-        </div>
-        <div className={settingsError ? 'text-red-500' : 'text-green-500'}>
-          Ajustes: {settingsLoading ? '⌛' : (settingsError ? `❌ ${settingsError}` : '✅ OK')}
-        </div>
-        <div className={productsError ? 'text-red-500' : 'text-green-500'}>
-          Ingredientes: {productsLoading ? '⌛' : (productsError ? `❌ ${productsError}` : '✅ OK')} {productDatabase.length}
-        </div>
-
-        <div className="h-px bg-green-900 my-2"></div>
-        {debugLogs.map((log, i) => (
-          <div key={i} className="border-l-2 border-green-700 pl-2 opacity-80 hover:opacity-100">{log}</div>
-        ))}
-      </div>
-    </div>
-  );
-
   if (!user) {
-    return (
-      <>
-        <Auth onSession={(u) => setUser(u)} />
-        <DebugOverlay />
-      </>
-    );
+    return <Auth onSession={(u) => setUser(u)} />;
   }
 
   if (!profile?.is_approved && profile?.role !== 'admin') {
-    return (
-      <>
-        <PendingApproval email={user.email || ''} onLogout={handleLogout} />
-        <DebugOverlay />
-      </>
-    );
+    return <PendingApproval email={user.email || ''} onLogout={handleLogout} />;
   }
 
   return (
@@ -563,8 +503,6 @@ function AppContent() {
           onLogout={handleLogout}
         />
       )}
-
-      <DebugOverlay />
     </>
   );
 }
