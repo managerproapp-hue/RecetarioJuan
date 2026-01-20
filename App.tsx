@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Recipe, AppSettings, AppBackup, Product, MenuPlan, DEFAULT_CATEGORIES, DEFAULT_PRODUCT_FAMILIES, SubRecipe } from './types';
 import { useCloudSync } from './hooks/useCloudSync';
 import { useProducts } from './hooks/useProducts';
@@ -144,27 +144,34 @@ function AppContent() {
   const [communityLoading, setCommunityLoading] = useState(false);
 
   // 🚀 AUTO-MIGRATION: If admin logs in and has old products, migrate them to the shared table
+  const migrationStarted = useRef(false);
   useEffect(() => {
-    if (profile?.role === 'admin' && oldProducts.length > 0 && productDatabase.length <= 1) {
+    if (profile?.role === 'admin' && !oldLoading && !productsLoading && oldProducts.length > 0 && productDatabase.length <= 1 && !migrationStarted.current) {
+      migrationStarted.current = true;
       const migrate = async () => {
         console.log('Migrating old products to shared database...');
-        for (const p of oldProducts) {
-          // Check if already exists (simple name check) to avoid duplicates
-          if (!productDatabase.some(existing => existing.name.toLowerCase() === p.name.toLowerCase())) {
-            await handleAddProduct({
-              ...p,
-              is_approved: true, // Admin products are pre-approved
-              created_by: profile.id
-            });
+        try {
+          for (const p of oldProducts) {
+            // Check if already exists (simple name check) to avoid duplicates
+            const alreadyExists = productDatabase.some(existing => existing.name.toLowerCase() === p.name.toLowerCase());
+            if (!alreadyExists) {
+              await handleAddProduct({
+                ...p,
+                is_approved: true,
+                created_by: profile.id
+              });
+            }
           }
+          console.log('Migration complete');
+          refreshProducts();
+        } catch (err) {
+          console.error('Migration failed:', err);
+          migrationStarted.current = false; // Allow retry on next render if failed
         }
-        // After migration, we could clear oldProducts, but better to keep them for safety and just rely on the count check
-        console.log('Migration complete');
-        refreshProducts();
       };
       migrate();
     }
-  }, [profile, oldProducts, productDatabase.length]);
+  }, [profile, oldProducts, productsLoading, oldLoading]);
 
   useEffect(() => {
     if (!user) return;
