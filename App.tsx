@@ -172,21 +172,82 @@ function AppContent() {
   useEffect(() => {
     addLog('App mounted. Checking session...');
 
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
+    const initSession = async () => {
+      // 1. HEADER: Check for PKCE Code (query param) - Supabase v2 Default
+      // Because detectSessionInUrl is false, we MUST handle this manually if present
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get('code');
+
+      if (code) {
+        addLog(`PKCE Code Detected. Exchanging...`);
+        try {
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+          if (data.session) {
+            addLog(`PKCE Success: ${data.session.user.email}`);
+            setUser(data.session.user);
+            fetchOrCreateProfile(data.session.user);
+            // Clean URL
+            window.history.replaceState({}, '', window.location.origin + window.location.pathname);
+            return;
+          }
+          if (error) addLog(`PKCE Error: ${error.message}`);
+        } catch (err: any) {
+          addLog(`PKCE Exception: ${err.message}`);
+        }
+      }
+
+      // 2. Standard Session Check (Storage)
+      const { data: { session }, error } = await supabase.auth.getSession();
+
+      if (session) {
+        addLog(`getSession Success: ${session.user.email}`);
+        setUser(session.user);
+        fetchOrCreateProfile(session.user);
+        return;
+      }
+
       if (error) addLog(`getSession Error: ${error.message}`);
-      else addLog(`getSession Result: ${session ? 'Session Found' : 'No Session'}`);
+      else addLog('getSession Result: No Session');
 
-      setUser(session?.user ?? null);
-      if (session?.user) fetchOrCreateProfile(session.user);
-      else setAuthLoading(false);
-    });
+      // 3. Implicit Flow Check (Hash) - Fallback for older auth flows
+      const hash = window.location.hash;
+      if (hash && hash.includes('access_token')) {
+        addLog('Hash Detected. Attempting Manual Recovery...');
+        const params = new URLSearchParams(hash.replace('#', ''));
+        const access_token = params.get('access_token');
+        const refresh_token = params.get('refresh_token');
 
+        if (access_token) {
+          const { data, error } = await supabase.auth.setSession({
+            access_token,
+            refresh_token: refresh_token || ''
+          });
+
+          if (data.session) {
+            addLog(`Manual Recovery Success: ${data.session.user.email}`);
+            setUser(data.session.user);
+            fetchOrCreateProfile(data.session.user);
+            return;
+          }
+          if (error) addLog(`Manual Recovery Error: ${error.message}`);
+        }
+      }
+
+      // If we reached here, no valid session was found
+      setAuthLoading(false);
+    };
+
+    initSession();
+
+    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
       addLog(`AuthStateChange: ${event}. User: ${session?.user?.email ?? 'None'}`);
 
-      setUser(session?.user ?? null);
-      if (session?.user) fetchOrCreateProfile(session.user);
-      else {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        setUser(session?.user ?? null);
+        if (session?.user) fetchOrCreateProfile(session.user);
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
         setProfile(null);
         setAuthLoading(false);
       }

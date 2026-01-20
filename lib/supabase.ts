@@ -9,4 +9,9 @@ if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KE
     // We let it continue so the UI can at least render the error overlay
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+    auth: {
+        detectSessionInUrl: false, // We handle this manually in App.tsx to avoid race conditions
+        persistSession: true,
+    }
+});
