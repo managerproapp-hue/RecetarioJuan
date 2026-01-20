@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { UserProfile, Recipe } from '../types';
+import { UserProfile, Recipe, AppSettings } from '../types';
 import { Users, Shield, CheckCircle, XCircle, Trash2, Eye, ArrowLeft, Loader2, Search, ChefHat, Database, ArrowRightCircle } from 'lucide-react';
 
 interface AdminDashboardProps {
     onBack: () => void;
     onViewRecipe: (recipe: Recipe) => void;
     onMigrate?: () => Promise<void>;
+    currentProfile: UserProfile;
+    settings: AppSettings;
+    onSettingsChange: (settings: AppSettings) => void;
 }
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onViewRecipe, onMigrate }) => {
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({
+    onBack, onViewRecipe, onMigrate, currentProfile, settings, onSettingsChange
+}) => {
     const [profiles, setProfiles] = useState<UserProfile[]>([]);
     const [allRecipes, setAllRecipes] = useState<(Recipe & { ownerEmail?: string })[]>([]);
     const [loading, setLoading] = useState(true);
@@ -17,12 +22,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onViewRe
     const [searchTerm, setSearchTerm] = useState('');
     const [migrating, setMigrating] = useState(false);
 
+    const isSuperAdmin = currentProfile?.role === 'admin';
+    const isEditor = currentProfile?.role === 'editor';
+
+    const suggestedCategories = React.useMemo(() => {
+        const found = new Set<string>();
+        allRecipes.forEach(r => {
+            const recipeCats = Array.isArray(r.category) ? r.category : [r.category];
+            recipeCats.forEach(cat => {
+                if (cat && !settings.categories.includes(cat)) {
+                    found.add(cat);
+                }
+            });
+        });
+        return Array.from(found);
+    }, [allRecipes, settings.categories]);
+
+    const handleApproveCategory = (cat: string) => {
+        if (!isSuperAdmin) return;
+        onSettingsChange({
+            ...settings,
+            categories: [...settings.categories, cat]
+        });
+        alert(`Categoría "${cat}" aprobada.`);
+    };
+
     const handleMigrate = async () => {
         if (!confirm('Esto copiará tus ingredientes antiguos al nuevo sistema compartido. ¿Continuar?')) return;
 
         setMigrating(true);
         try {
-            // This logic will be passed via props or implemented here using passed data
             if (onMigrate) {
                 await onMigrate();
                 alert('Migración completada con éxito.');
@@ -38,7 +67,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onViewRe
     useEffect(() => {
         fetchData();
 
-        // 🔄 REALTIME: Keep profiles synced across all admin sessions
         const channel = supabase
             .channel('admin-profiles-sync')
             .on(
@@ -75,17 +103,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onViewRe
             const { data: stores, error: storeError } = await supabase
                 .from('store')
                 .select('key, value')
-                .like('key', 'recipes:%');
+                .like('key', 'recipes%');
 
             if (storeError) throw storeError;
 
             const flattenedRecipes: (Recipe & { ownerEmail?: string })[] = [];
             stores?.forEach(item => {
                 if (Array.isArray(item.value)) {
-                    const ownerId = item.key.split(':')[1];
+                    const ownerId = item.key.includes(':') ? item.key.split(':')[1] : null;
                     const owner = profs?.find(p => p.id === ownerId);
                     item.value.forEach((r: Recipe) => {
-                        flattenedRecipes.push({ ...r, ownerEmail: owner?.email });
+                        flattenedRecipes.push({ ...r, ownerEmail: owner?.email || 'Sistema/Legado' });
                     });
                 }
             });
@@ -100,7 +128,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onViewRe
 
     const handleToggleApproval = async (profile: UserProfile) => {
         try {
-            // Use the MOST RECENT state from the table to avoid toggle wars
             const newStatus = !profile.is_approved;
             const { error } = await supabase
                 .from('profiles')
@@ -108,12 +135,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onViewRe
                 .eq('id', profile.id);
 
             if (error) throw error;
-
-            // 🔄 OPTIMISTIC UPDATE: Update local state immediately 
-            // so the user sees the change even if Realtime takes a second.
             setProfiles(prev => prev.map(p => p.id === profile.id ? { ...p, is_approved: newStatus } : p));
         } catch (err) {
             alert('Error al actualizar estado del usuario');
+        }
+    };
+
+    const handleUpdateRole = async (userId: string, newRole: 'admin' | 'editor' | 'user') => {
+        if (!isSuperAdmin) return;
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .update({ role: newRole })
+                .eq('id', userId);
+            if (error) throw error;
+            setProfiles(prev => prev.map(p => p.id === userId ? { ...p, role: newRole } : p));
+        } catch (err) {
+            alert('Error al actualizar rol');
+        }
+    };
+
+    const handleDeleteUser = async (userId: string, email: string) => {
+        if (!isSuperAdmin) return;
+        if (!confirm(`¿Estás SEGURO de eliminar a ${email}? Esta acción no se puede deshacer.`)) return;
+        try {
+            const { error } = await supabase.from('profiles').delete().eq('id', userId);
+            if (error) throw error;
+            setProfiles(prev => prev.filter(p => p.id !== userId));
+        } catch (err) {
+            alert('Error al eliminar usuario');
         }
     };
 
@@ -145,12 +195,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onViewRe
                         >
                             Auditoría Recetas ({allRecipes.length})
                         </button>
-                        <button
-                            onClick={() => setActiveTab('database')}
-                            className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'database' ? 'bg-amber-500 text-slate-900 shadow-lg' : 'text-slate-400 hover:text-white'}`}
-                        >
-                            Gestión Base Datos
-                        </button>
+                        {isSuperAdmin && (
+                            <button
+                                onClick={() => setActiveTab('database')}
+                                className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'database' ? 'bg-amber-500 text-slate-900 shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                            >
+                                Gestión Base Datos
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -192,15 +244,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onViewRe
                                         <td className="px-8 py-5">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 font-black text-xs">
-                                                    {p.email[0].toUpperCase()}
+                                                    {p.email ? p.email[0].toUpperCase() : '?'}
                                                 </div>
                                                 <span className="font-bold text-slate-700">{p.email}</span>
                                             </div>
                                         </td>
                                         <td className="px-8 py-5">
-                                            <span className={`px-2 py-1 rounded text-[8px] font-black uppercase ${p.role === 'admin' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>
-                                                {p.role}
-                                            </span>
+                                            {isSuperAdmin ? (
+                                                <select
+                                                    value={p.role}
+                                                    onChange={(e) => handleUpdateRole(p.id, e.target.value as any)}
+                                                    className="bg-slate-100 text-slate-700 text-[8px] font-black uppercase px-2 py-1 rounded outline-none border-none cursor-pointer"
+                                                >
+                                                    <option value="user">User</option>
+                                                    <option value="editor">Editor</option>
+                                                    <option value="admin">Admin</option>
+                                                </select>
+                                            ) : (
+                                                <span className={`px-2 py-1 rounded text-[8px] font-black uppercase ${p.role === 'admin' ? 'bg-rose-100 text-rose-600' : p.role === 'editor' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>
+                                                    {p.role}
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="px-8 py-5">
                                             <div className="flex items-center gap-2">
@@ -218,13 +282,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onViewRe
                                         <td className="px-8 py-5 text-[10px] text-slate-400 font-mono">
                                             {new Date(p.created_at).toLocaleDateString()}
                                         </td>
-                                        <td className="px-8 py-5 text-right">
+                                        <td className="px-8 py-5 text-right flex items-center justify-end gap-2">
                                             {p.role !== 'admin' && (
                                                 <button
                                                     onClick={() => handleToggleApproval(p)}
                                                     className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${p.is_approved ? 'bg-rose-50 text-rose-600 hover:bg-rose-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}
                                                 >
                                                     {p.is_approved ? 'Revocar' : 'Aprobar'}
+                                                </button>
+                                            )}
+                                            {isSuperAdmin && p.id !== currentProfile.id && (
+                                                <button
+                                                    onClick={() => handleDeleteUser(p.id, p.email)}
+                                                    className="p-2 text-slate-300 hover:text-rose-500 transition-all rounded-lg hover:bg-rose-50"
+                                                    title="Eliminar usuario definitivamente"
+                                                >
+                                                    <Trash2 size={16} />
                                                 </button>
                                             )}
                                         </td>
@@ -273,6 +346,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onViewRe
                                 </div>
                             </div>
                         </div>
+
+                        {suggestedCategories.length > 0 && (
+                            <div className="mt-12 text-left">
+                                <h3 className="font-black text-slate-800 uppercase text-xs tracking-widest mb-6 flex items-center gap-3">
+                                    <ChefHat size={18} className="text-indigo-500" /> Categorías por Aprobar ({suggestedCategories.length})
+                                </h3>
+                                <div className="flex flex-wrap gap-3">
+                                    {suggestedCategories.map(cat => (
+                                        <div key={cat} className="flex items-center gap-2 bg-white border border-slate-200 pl-4 pr-2 py-2 rounded-xl shadow-sm">
+                                            <span className="text-[10px] font-bold text-slate-700">{cat}</span>
+                                            <button
+                                                onClick={() => handleApproveCategory(cat)}
+                                                className="p-1 px-3 bg-emerald-500 hover:bg-emerald-400 text-white text-[8px] font-black uppercase rounded-lg transition-all"
+                                            >
+                                                Aprobar
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

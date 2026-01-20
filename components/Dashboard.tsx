@@ -29,6 +29,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeView, setActiveView] = useState<'personal' | 'community'>('personal');
+  const [viewMode, setViewMode] = useState<'grid' | 'compact'>('grid');
   const [visibleCount, setVisibleCount] = useState(20);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -151,6 +152,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             <div className="flex bg-slate-800/80 p-1 rounded-2xl border border-slate-700/50">
               <button
+                onClick={() => setViewMode('grid')}
+                className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${viewMode === 'grid' ? 'bg-slate-600 text-white' : 'text-slate-500 hover:text-white'}`}
+              >
+                Normal
+              </button>
+              <button
+                onClick={() => setViewMode('compact')}
+                className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${viewMode === 'compact' ? 'bg-slate-600 text-white' : 'text-slate-500 hover:text-white'}`}
+              >
+                Compacto
+              </button>
+            </div>
+
+            <div className="flex bg-slate-800/80 p-1 rounded-2xl border border-slate-700/50">
+              <button
                 onClick={() => setActiveView('personal')}
                 className={`px-6 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeView === 'personal' ? 'bg-amber-500 text-slate-950 shadow-lg' : 'text-slate-400 hover:text-white'}`}
               >
@@ -184,7 +200,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       <div className="max-w-7xl mx-auto px-6 mt-12">
-        <div className="flex flex-col gap-4">
+        <div className={viewMode === 'grid' ? 'flex flex-col gap-4' : 'grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3'}>
           {paginatedRecipes.length > 0 ? paginatedRecipes.map(recipe => {
             const costPerPortion = recipe.totalCost && recipe.yieldQuantity ? (recipe.totalCost / recipe.yieldQuantity).toFixed(2) : '0.00';
             const isOwner = recipe.ownerId === currentProfile?.id;
@@ -193,6 +209,43 @@ export const Dashboard: React.FC<DashboardProps> = ({
             const borderColor = activeView === 'community'
               ? (isOwner ? 'border-l-4 border-l-emerald-500' : 'border-l-4 border-l-rose-500')
               : 'border-l border-slate-100/80';
+
+            if (viewMode === 'compact') {
+              return (
+                <div
+                  key={recipe.id}
+                  onClick={() => onView(recipe)}
+                  className={`bg-white rounded-2xl shadow-sm hover:shadow-md transition-all border border-slate-100 p-2 flex flex-col gap-2 cursor-pointer group relative ${borderColor}`}
+                  style={{ width: '100%', height: 'auto' }}
+                >
+                  <div className="aspect-square rounded-xl bg-slate-50 overflow-hidden relative">
+                    {recipe.photo ? (
+                      <img src={recipe.photo} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-300">
+                        <ChefHat size={20} />
+                      </div>
+                    )}
+                    {activeView === 'community' && !isOwner && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onImport(recipe);
+                        }}
+                        className="absolute top-1 right-1 p-2 bg-indigo-600 text-white rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                        title="Hacerla mía"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    )}
+                  </div>
+                  <div className="space-y-0.5">
+                    <h3 className="text-[10px] font-black text-slate-800 line-clamp-1 truncate uppercase leading-tight">{recipe.name}</h3>
+                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">{costPerPortion}€/u</p>
+                  </div>
+                </div>
+              );
+            }
 
             return (
               <div key={recipe.id} className={`bg-white rounded-3xl shadow-sm hover:shadow-xl transition-all duration-500 border-t border-r border-b border-slate-100/80 overflow-hidden flex group relative p-4 items-center gap-6 ${borderColor}`}>
@@ -271,6 +324,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </div>
 
                       <div className="flex items-center gap-2">
+                        {activeView === 'community' && !isOwner && (
+                          <button
+                            onClick={() => onImport(recipe)}
+                            className="flex items-center gap-2 px-4 py-3 bg-indigo-50 hover:bg-indigo-600 text-indigo-600 hover:text-white font-black text-[9px] uppercase tracking-widest rounded-2xl transition-all"
+                            title="Clonar a mi recetario"
+                          >
+                            <Plus size={14} /> Hacerla mía
+                          </button>
+                        )}
                         {activeView === 'personal' && (
                           <>
                             <button

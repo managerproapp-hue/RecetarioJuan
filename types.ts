@@ -89,7 +89,7 @@ export interface UserProfile {
   id: string;
   email: string;
   is_approved: boolean;
-  role: 'admin' | 'user';
+  role: 'admin' | 'editor' | 'user';
   created_at: string;
 }
 

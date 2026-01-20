@@ -416,6 +416,20 @@ export const RecipeEditor: React.FC<RecipeEditorProps> = ({
                   </button>
                 );
               })}
+              <button
+                type="button"
+                onClick={() => {
+                  const suggested = prompt('Propón una nueva categoría para que el administrador la apruebe:');
+                  if (suggested && !settings.categories.includes(suggested)) {
+                    setCategory([...category, suggested]);
+                    // Notificaremos al sistema de alguna forma o simplemente guardaremos la receta con ella.
+                    alert(`Has propuesto "${suggested}". Se guardará en esta receta y el administrador la revisará.`);
+                  }
+                }}
+                className="px-4 py-3 rounded-xl text-[10px] font-black uppercase transition-all border-2 border-dashed border-amber-300 text-amber-600 hover:bg-amber-50 leading-tight h-12"
+              >
+                + Proponer Categoría
+              </button>
             </div>
           </div>
 

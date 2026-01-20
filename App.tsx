@@ -514,7 +514,14 @@ function AppContent() {
           settings={settings}
           onBack={() => setViewState('dashboard')}
           onImport={(recipe) => {
-            handleSave(recipe);
+            const cloned = {
+              ...recipe,
+              id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+              ownerId: profile?.id,
+              isPublic: false,
+              lastModified: Date.now()
+            };
+            setRecipes(prev => [cloned, ...prev]);
             setViewState('dashboard');
           }}
         />
@@ -545,8 +552,7 @@ function AppContent() {
           onAdd={handleAddProduct}
           onEdit={handleUpdateProduct}
           onDelete={handleDeleteProduct}
-          onImport={async (list) => {
-            // Bulk import for Admin only
+          onImport={async (list: any[]) => {
             if (profile?.role === 'admin') {
               for (const p of list) {
                 await handleAddProduct(p);
@@ -564,7 +570,10 @@ function AppContent() {
             setCurrentRecipe(migrateRecipeIfNeeded(recipe));
             setViewState('view');
           }}
-          onMigrate={handleMigrate}
+          onMigrate={profile?.role === 'admin' ? handleMigrate : undefined}
+          currentProfile={profile}
+          settings={settings}
+          onSettingsChange={setSettings}
         />
       ) : (
         <Dashboard
@@ -578,7 +587,17 @@ function AppContent() {
           onEdit={handleEdit}
           onView={handleView}
           onDelete={(id) => setRecipes(recipes.filter(r => r.id !== id))}
-          onImport={(r) => setRecipes([r, ...recipes])}
+          onImport={(r) => {
+            const cloned = {
+              ...r,
+              id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+              ownerId: profile?.id,
+              isPublic: false,
+              lastModified: Date.now()
+            };
+            setRecipes(prev => [cloned, ...prev]);
+            alert('¡Receta añadida a tu recetario personal!');
+          }}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenMenuPlanner={() => setViewState('planner')}
           onOpenProductDB={() => setViewState('products')}
