@@ -187,8 +187,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <div className="flex flex-col gap-4">
           {paginatedRecipes.length > 0 ? paginatedRecipes.map(recipe => {
             const costPerPortion = recipe.totalCost && recipe.yieldQuantity ? (recipe.totalCost / recipe.yieldQuantity).toFixed(2) : '0.00';
+            const isOwner = recipe.ownerId === currentProfile?.id;
+
+            // Determinar color del borde lateral en modo comunidad
+            const borderColor = activeView === 'community'
+              ? (isOwner ? 'border-l-4 border-l-emerald-500' : 'border-l-4 border-l-rose-500')
+              : 'border-l border-slate-100/80';
+
             return (
-              <div key={recipe.id} className="bg-white rounded-3xl shadow-sm hover:shadow-xl transition-all duration-500 border border-slate-100/80 overflow-hidden flex group relative p-4 items-center gap-6">
+              <div key={recipe.id} className={`bg-white rounded-3xl shadow-sm hover:shadow-xl transition-all duration-500 border-t border-r border-b border-slate-100/80 overflow-hidden flex group relative p-4 items-center gap-6 ${borderColor}`}>
                 {/* Imagen Lateral Pequeña */}
                 <div className="w-24 h-24 rounded-2xl overflow-hidden bg-slate-50 shrink-0 relative">
                   {recipe.photo ? (
@@ -232,9 +239,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           </div>
                         )}
                         {activeView === 'community' && (
-                          <span className="bg-emerald-50 text-emerald-600 text-[8px] font-black px-2 py-0.5 rounded-md uppercase flex items-center gap-1 shadow-sm">
-                            <Globe size={8} /> Público
-                          </span>
+                          <>
+                            <span className="bg-emerald-50 text-emerald-600 text-[8px] font-black px-2 py-0.5 rounded-md uppercase flex items-center gap-1 shadow-sm">
+                              <Globe size={8} /> Público
+                            </span>
+                            <span className={`${isOwner ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-600 border-rose-100'} border text-[8px] font-black px-2 py-0.5 rounded-md uppercase flex items-center gap-1 shadow-sm`}>
+                              {isOwner ? 'TÚ' : 'COMUNIDAD'}
+                            </span>
+                          </>
                         )}
                       </div>
                       <h3 className="text-lg font-black text-slate-800 leading-tight uppercase tracking-tight truncate group-hover:text-indigo-600 transition-colors">
