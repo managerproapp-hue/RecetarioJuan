@@ -15,38 +15,46 @@ export const AIBridge: React.FC<AIBridgeProps> = ({ settings, onBack, onImport }
   const [error, setError] = useState<string | null>(null);
 
   const masterPrompt = `Actúa como un Chef Ejecutivo y experto en digitalización de datos gastronómicos.
-Tu tarea es convertir el texto o imagen de una receta que te voy a proporcionar en un objeto JSON compatible con mi sistema de gestión de cocina.
+Tu tarea es convertir el texto o imagen de una receta que te voy a proporcionar en un objeto JSON compatible con mi sistema de gestión de cocina v3.
 
 REGLAS DE FORMATO:
 1. Devuelve ÚNICAMENTE el código JSON, sin explicaciones ni texto adicional.
 2. Esquema exacto:
 {
   "name": "Nombre de la receta",
-  "category": "${settings.categories?.join('|') || 'Entrantes|Carnes|Pescados|Postres'}",
+  "category": ["${settings.categories?.[0] || 'Otros'}"], 
   "yieldQuantity": 4, 
   "yieldUnit": "raciones",
-  "elaborations": [
+  "subRecipes": [
     {
       "name": "Nombre de la elaboración (ej: Masa, Salsa, Principal)",
-      "ingredients": [{"name": "Producto", "quantity": "100", "unit": "g|kg|ml|l|ud"}],
+      "ingredients": [
+        {
+          "name": "Producto", 
+          "quantity": "100", 
+          "unit": "g|kg|ml|l|ud",
+          "category": "OPCIONAL: Familia del producto (CARNES, PESCADOS, etc.)",
+          "allergens": []
+        }
+      ],
       "instructions": "Pasos detallados..."
     }
   ],
-  "notes": "Alérgenos, puntos críticos o consejos",
+  "platingInstructions": "Instrucciones detalladas de emplatado y presentación",
   "serviceDetails": {
-    "presentation": "Cómo emplatar",
-    "servingTemp": "Temp ideal",
-    "cutlery": "Cubiertos",
+    "presentation": "Resumen de presentación",
+    "servingTemp": "Temperatura ideal (ej: 65°C)",
+    "cutlery": "Cubiertos necesarios",
     "passTime": "Tiempo estimado",
     "serviceType": "A la Americana (Emplatado)",
-    "clientDescription": "Descripción sugerente para carta"
+    "clientDescription": "Descripción sugerente y vendedora para el camarero"
   }
 }
 
 REGLAS TÉCNICAS:
 - "yieldQuantity" es el Rendimiento (PAX), SIEMPRE numérico.
-- "yieldUnit" es la Unidad de Medida (ej: raciones, pax, personas).
-- Cantidades de ingredientes siempre numéricas o strings limpios (ej: "0.500").
+- "category" DEBE SER un array de strings [].
+- "subRecipes" es el nuevo nombre para las elaboraciones.
 - Si no hay datos de servicio, deja los campos vacíos "".
 
 RECETA A DIGITALIZAR:
@@ -72,15 +80,13 @@ RECETA A DIGITALIZAR:
       }
 
       // 2. Limpieza agresiva de Citas de IA (ej: [cite_start], [cite: 2])
-      // Limpiamos esto ANTES de buscar las llaves para no confundir al parser
       let cleaned = rawInput
         .replace(/\[cite_start\]/gi, '')
         .replace(/\[cite_end\]/gi, '')
         .replace(/\[cite:.*?\]/gi, '')
-        .replace(/\\\[cite:.*?\\\]/gi, ''); // Por si vienen escapadas
+        .replace(/\\\[cite:.*?\\\]/gi, '');
 
       // 3. Extracción de bloque JSON: Buscar desde el primer { hasta el último }
-      // Esto ignora cualquier texto basura que la IA haya puesto antes o después del objeto
       const firstBrace = cleaned.indexOf('{');
       const lastBrace = cleaned.lastIndexOf('}');
 
@@ -93,14 +99,12 @@ RECETA A DIGITALIZAR:
       // 4. Parseo final
       const data = JSON.parse(jsonString);
 
-      if (!data.name || (!data.elaborations && !data.subRecipes)) {
+      if (!data.name || (!data.subRecipes && !data.elaborations)) {
         throw new Error("El JSON no tiene la estructura de receta esperada.");
       }
 
-      // Compatibilidad con campos que la IA podría nombrar diferente
-      const rawSubRecipes = data.elaborations || data.subRecipes || [];
-
-      // Convertir el formato de la IA al formato interno de la App
+      // Convertir el formato de la IA al formato interno de la App v3
+      const rawSubRecipes = data.subRecipes || data.elaborations || [];
       const subRecipes: SubRecipe[] = rawSubRecipes.map((elab: any, idx: number) => ({
         id: `sr_${Date.now()}_${idx}`,
         name: (elab.name || 'Elaboración').toUpperCase(),
@@ -113,7 +117,8 @@ RECETA A DIGITALIZAR:
             name: (ing.name || '').toUpperCase(),
             quantity: qtyStr,
             unit: ing.unit || 'kg',
-            allergens: [],
+            category: (ing.category || 'VARIOS').toUpperCase(),
+            allergens: Array.isArray(ing.allergens) ? ing.allergens : [],
             cost: 0
           };
         })
@@ -122,13 +127,13 @@ RECETA A DIGITALIZAR:
       const newRecipe: Recipe = {
         id: `ai_${Date.now()}`,
         name: data.name.toUpperCase(),
-        category: data.category || settings.categories?.[0] || 'Otros',
+        category: Array.isArray(data.category) ? data.category : [data.category || 'Otros'],
         photo: '',
         creator: settings.teacherName,
         yieldQuantity: Number(data.yieldQuantity) || 1,
         yieldUnit: data.yieldUnit || 'raciones',
         subRecipes: subRecipes,
-        platingInstructions: data.notes || '',
+        platingInstructions: data.platingInstructions || data.notes || '',
         serviceDetails: {
           presentation: data.serviceDetails?.presentation || '',
           servingTemp: data.serviceDetails?.servingTemp || '',
