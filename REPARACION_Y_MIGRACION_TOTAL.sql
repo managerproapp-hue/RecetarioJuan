@@ -76,7 +76,7 @@ BEGIN
                     recipe_item->>'creator',
                     COALESCE((recipe_item->>'isPublic')::BOOLEAN, false),
                     user_id,
-                    COALESCE((recipe_item->>'totalCost')::NUMERIC, (recipe_item->>'total_cost')::NUMERIC, 0),
+                    COALESCE(replace(recipe_item->>'totalCost', ',', '.')::NUMERIC, replace(recipe_item->>'total_cost', ',', '.')::NUMERIC, 0),
                     COALESCE((recipe_item->>'lastModified')::BIGINT / 1000 * interval '1 second' + '1970-01-01'::timestamp, now()),
                     recipe_item
                 )
@@ -103,7 +103,7 @@ BEGIN
                 recipe_item->>'creator',
                 COALESCE((recipe_item->>'isPublic')::BOOLEAN, false),
                 user_id,
-                COALESCE((recipe_item->>'totalCost')::NUMERIC, (recipe_item->>'total_cost')::NUMERIC, 0),
+                COALESCE(replace(recipe_item->>'totalCost', ',', '.')::NUMERIC, replace(recipe_item->>'total_cost', ',', '.')::NUMERIC, 0),
                 COALESCE((recipe_item->>'lastModified')::BIGINT / 1000 * interval '1 second' + '1970-01-01'::timestamp, now()),
                 recipe_item
             )

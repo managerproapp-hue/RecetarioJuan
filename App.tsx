@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Recipe, AppSettings, AppBackup, Product, MenuPlan, DEFAULT_CATEGORIES, DEFAULT_PRODUCT_FAMILIES, SubRecipe } from './types';
 import { useCloudSync } from './hooks/useCloudSync';
 import { useProducts } from './hooks/useProducts';
@@ -667,7 +667,7 @@ function AppContent() {
         />
       ) : (
         <Dashboard
-          recipes={recipes}
+          recipes={useMemo(() => syncRecipesWithProducts(recipes, productDatabase), [recipes, productDatabase])}
           settings={settings}
           savedMenus={savedMenus}
           productDatabase={productDatabase}

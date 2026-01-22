@@ -227,7 +227,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <div className="max-w-7xl mx-auto px-6 mt-12">
         <div className={viewMode === 'grid' ? 'flex flex-col gap-4' : 'grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3'}>
           {paginatedRecipes.length > 0 ? paginatedRecipes.map(recipe => {
-            const costPerPortion = recipe.totalCost && recipe.yieldQuantity ? (recipe.totalCost / recipe.yieldQuantity).toFixed(2) : '0.00';
+            const hasCost = typeof recipe.totalCost === 'number' && recipe.totalCost > 0;
+            const costPerPortion = hasCost && recipe.yieldQuantity > 0 ? (recipe.totalCost! / recipe.yieldQuantity).toFixed(2) : '0.00';
             const isOwner = recipe.ownerId === currentProfile?.id;
 
             // Determinar color del borde lateral en modo comunidad
