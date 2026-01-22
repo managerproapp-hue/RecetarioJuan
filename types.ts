@@ -93,12 +93,21 @@ export interface UserProfile {
   created_at: string;
 }
 
+export interface MenuRecipeReference {
+  recipeId: string;
+  pax: number;
+  isVerified: boolean;
+  serviceMemory: string;
+  checklist: { id: string; name: string; completed: boolean }[];
+  ingredientOverrides: Record<string, { quantity: string; unit: string }>; // key is ingredient id or name
+}
+
 export interface MenuPlan {
   id: string;
   title: string;
   date: string;
   pax: number;
-  recipeIds: string[];
+  recipes: MenuRecipeReference[];
   lastModified: number;
 }
 

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Recipe, AppSettings, Product, MenuPlan } from '../types';
+import { Recipe, AppSettings, Product, MenuPlan, MenuRecipeReference } from '../types';
 import {
   ArrowLeft, Plus, Trash2, Calendar, Users, Save,
-  ChefHat, Search, BookOpen, Clock, FileText, Download, Check, ShoppingCart, X, Printer
+  ChefHat, Search, BookOpen, Clock, FileText, Download, Check, ShoppingCart, X, Printer,
+  ClipboardList, AlertTriangle, Info
 } from 'lucide-react';
 import { parseQuantity, normalizeToBasics, formatNormalized } from '../utils';
 
@@ -22,11 +23,12 @@ export const MenuPlanner: React.FC<MenuPlannerProps> = ({
   const [isCreating, setIsCreating] = useState(false);
   const [editingMenu, setEditingMenu] = useState<MenuPlan | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeStep, setActiveStep] = useState<'config' | 'verification'>('config');
 
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [pax, setPax] = useState(1);
-  const [selectedRecipeIds, setSelectedRecipeIds] = useState<string[]>([]);
+  const [selectedRecipes, setSelectedRecipes] = useState<MenuRecipeReference[]>([]);
   const [showShoppingList, setShowShoppingList] = useState(false);
 
   const filteredRecipes = recipes.filter(r =>
@@ -37,9 +39,10 @@ export const MenuPlanner: React.FC<MenuPlannerProps> = ({
     setTitle('');
     setDate(new Date().toISOString().split('T')[0]);
     setPax(1);
-    setSelectedRecipeIds([]);
+    setSelectedRecipes([]);
     setEditingMenu(null);
     setIsCreating(true);
+    setActiveStep('config');
   };
 
   const handleEdit = (menu: MenuPlan) => {
@@ -47,13 +50,14 @@ export const MenuPlanner: React.FC<MenuPlannerProps> = ({
     setTitle(menu.title);
     setDate(menu.date);
     setPax(menu.pax);
-    setSelectedRecipeIds(menu.recipeIds);
+    setSelectedRecipes(menu.recipes || []);
     setIsCreating(true);
+    setActiveStep('config');
   };
 
   const handleSave = () => {
-    if (!title.trim() || selectedRecipeIds.length === 0) {
-      alert('Por favor, indica un título y selecciona al menos una receta.');
+    if (!title.trim() || !date || pax <= 0 || selectedRecipes.length === 0) {
+      alert('Error: Nombre, Fecha, PAX y al menos una receta son obligatorios.');
       return;
     }
 
@@ -62,7 +66,7 @@ export const MenuPlanner: React.FC<MenuPlannerProps> = ({
       title,
       date,
       pax,
-      recipeIds: selectedRecipeIds,
+      recipes: selectedRecipes,
       lastModified: Date.now()
     };
 
@@ -70,37 +74,57 @@ export const MenuPlanner: React.FC<MenuPlannerProps> = ({
     setIsCreating(false);
   };
 
-  const toggleRecipe = (id: string) => {
-    setSelectedRecipeIds(prev =>
-      prev.includes(id) ? prev.filter(rid => rid !== id) : [...prev, id]
-    );
+  const toggleRecipe = (recipe: Recipe) => {
+    setSelectedRecipes(prev => {
+      const exists = prev.find(r => r.recipeId === recipe.id);
+      if (exists) {
+        return prev.filter(r => r.recipeId !== recipe.id);
+      } else {
+        const newRef: MenuRecipeReference = {
+          recipeId: recipe.id,
+          pax: pax, // Initialize with menu PAX
+          isVerified: false,
+          serviceMemory: '',
+          checklist: (recipe.subRecipes || []).map(sub => ({ id: sub.id, name: sub.name, completed: false })),
+          ingredientOverrides: {}
+        };
+        return [...prev, newRef];
+      }
+    });
   };
 
   const calculateShoppingList = () => {
-    const list: Record<string, { total: number, base: 'g' | 'ml' | 'ud' }> = {};
+    // Group by family -> product name
+    const groupedList: Record<string, Record<string, { total: number, base: 'g' | 'ml' | 'ud' }>> = {};
 
-    selectedRecipeIds.forEach(id => {
-      const recipe = recipes.find(r => r.id === id);
+    selectedRecipes.forEach(ref => {
+      const recipe = recipes.find(r => r.id === ref.recipeId);
       if (!recipe) return;
 
-      const ratio = pax / recipe.yieldQuantity;
+      const ratio = ref.pax / recipe.yieldQuantity;
 
       recipe.subRecipes?.forEach(sub => {
         sub.ingredients?.forEach(ing => {
-          const qty = parseQuantity(ing.quantity) * ratio;
+          let qty = parseQuantity(ing.quantity) * ratio;
+          if (ref.ingredientOverrides && ref.ingredientOverrides[ing.name]) {
+            qty = parseQuantity(ref.ingredientOverrides[ing.name].quantity);
+          }
+
           const normalized = normalizeToBasics(qty, ing.unit);
           const key = ing.name.toUpperCase();
+          const family = (ing.category || 'VARIOS').toUpperCase();
 
-          if (!list[key]) {
-            list[key] = { total: normalized.value, base: normalized.base };
+          if (!groupedList[family]) groupedList[family] = {};
+          if (!groupedList[family][key]) {
+            groupedList[family][key] = { total: normalized.value, base: normalized.base };
           } else {
-            list[key].total += normalized.value;
+            groupedList[family][key].total += normalized.value;
           }
         });
       });
     });
 
-    return Object.entries(list).sort((a, b) => a[0].localeCompare(b[0]));
+    return Object.entries(groupedList).sort((a, b) => a[0].localeCompare(b[0]));
   };
 
   return (
@@ -134,7 +158,7 @@ export const MenuPlanner: React.FC<MenuPlannerProps> = ({
             <div className="lg:col-span-4 space-y-6">
               <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 p-8 space-y-6">
                 <div>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 tracking-widest">Título del Menú / Evento</label>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 tracking-widest">Título del Menú / Evento <span className="text-rose-500">*</span></label>
                   <input
                     type="text"
                     value={title}
@@ -145,7 +169,7 @@ export const MenuPlanner: React.FC<MenuPlannerProps> = ({
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 tracking-widest">Fecha</label>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 tracking-widest">Fecha <span className="text-rose-500">*</span></label>
                     <input
                       type="date"
                       value={date}
@@ -154,7 +178,7 @@ export const MenuPlanner: React.FC<MenuPlannerProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 tracking-widest">PAX (Comensales)</label>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 tracking-widest">PAX (Base) <span className="text-rose-500">*</span></label>
                     <input
                       type="number"
                       value={pax}
@@ -182,21 +206,21 @@ export const MenuPlanner: React.FC<MenuPlannerProps> = ({
               <div className="bg-indigo-900 rounded-[2rem] p-6 text-white overflow-hidden relative group">
                 <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform"><ChefHat size={80} /></div>
                 <h4 className="text-lg font-black uppercase tracking-tight mb-2">Recetas Seleccionadas</h4>
-                <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest mb-4">Total: {selectedRecipeIds.length} platos</p>
+                <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest mb-4">Total: {selectedRecipes.length} platos</p>
                 <div className="space-y-2">
-                  {selectedRecipeIds.map((rid, sIdx) => {
-                    const r = recipes.find(x => x.id === rid);
+                  {selectedRecipes.map((ref, sIdx) => {
+                    const r = recipes.find(x => x.id === ref.recipeId);
                     return r ? (
-                      <div key={rid} className="flex justify-between items-center bg-white/10 p-3 rounded-xl border border-white/5 backdrop-blur-sm">
+                      <div key={ref.recipeId} className="flex justify-between items-center bg-white/10 p-3 rounded-xl border border-white/5 backdrop-blur-sm">
                         <span className="text-[10px] font-black uppercase truncate max-w-[80%]">
                           <span className="text-indigo-400 mr-2">{sIdx + 1}.</span>
                           {r.name}
                         </span>
-                        <button onClick={() => toggleRecipe(rid)} className="text-white/40 hover:text-white"><Trash2 size={12} /></button>
+                        <button onClick={() => toggleRecipe(r)} className="text-white/40 hover:text-white"><Trash2 size={12} /></button>
                       </div>
                     ) : null;
                   })}
-                  {selectedRecipeIds.length === 0 && (
+                  {selectedRecipes.length === 0 && (
                     <p className="text-white/30 text-[10px] font-bold uppercase py-10 text-center border-2 border-dashed border-white/10 rounded-2xl">Selecciona platos de la lista</p>
                   )}
                 </div>
@@ -207,7 +231,21 @@ export const MenuPlanner: React.FC<MenuPlannerProps> = ({
             <div className="lg:col-span-8 space-y-6">
               <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 p-8">
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-xl font-black uppercase tracking-tight text-slate-800">Catálogo de Recetas</h3>
+                  <div className="flex gap-2 bg-slate-100 p-1 rounded-2xl">
+                    <button
+                      onClick={() => setActiveStep('config')}
+                      className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeStep === 'config' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                      1. Selección
+                    </button>
+                    <button
+                      onClick={() => selectedRecipes.length > 0 && setActiveStep('verification')}
+                      disabled={selectedRecipes.length === 0}
+                      className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeStep === 'verification' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'} disabled:opacity-30`}
+                    >
+                      2. Verificación
+                    </button>
+                  </div>
                   <div className="relative w-64">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
                     <input
@@ -220,29 +258,165 @@ export const MenuPlanner: React.FC<MenuPlannerProps> = ({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {filteredRecipes.map(recipe => (
-                    <button
-                      key={recipe.id}
-                      onClick={() => toggleRecipe(recipe.id)}
-                      className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left group ${selectedRecipeIds.includes(recipe.id)
-                        ? 'border-indigo-500 bg-indigo-50/50 shadow-md'
-                        : 'border-slate-100 hover:border-slate-300 bg-white'
-                        }`}
-                    >
-                      <div className="w-16 h-16 rounded-xl bg-slate-100 overflow-hidden shrink-0">
-                        {recipe.photo ? <img src={recipe.photo} className="w-full h-full object-cover" alt="" /> : <ChefHat className="w-full h-full p-4 text-slate-200" />}
-                      </div>
-                      <div className="flex-grow">
-                        <h4 className="text-[11px] font-black uppercase text-slate-800 leading-tight mb-1">{recipe.name}</h4>
-                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{recipe.category?.[0] || 'Otros'}</span>
-                      </div>
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${selectedRecipeIds.includes(recipe.id) ? 'bg-indigo-500 text-white' : 'bg-slate-100 text-transparent'}`}>
-                        <Check size={14} />
-                      </div>
-                    </button>
-                  ))}
-                </div>
+                {activeStep === 'config' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {filteredRecipes.map(recipe => {
+                      const isSelected = selectedRecipes.some(r => r.recipeId === recipe.id);
+                      return (
+                        <button
+                          key={recipe.id}
+                          onClick={() => toggleRecipe(recipe)}
+                          className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left group ${isSelected
+                            ? 'border-indigo-500 bg-indigo-50/50 shadow-md'
+                            : 'border-slate-100 hover:border-slate-300 bg-white'
+                            }`}
+                        >
+                          <div className="w-16 h-16 rounded-xl bg-slate-100 overflow-hidden shrink-0">
+                            {recipe.photo ? <img src={recipe.photo} className="w-full h-full object-cover" alt="" /> : <ChefHat className="w-full h-full p-4 text-slate-200" />}
+                          </div>
+                          <div className="flex-grow">
+                            <h4 className="text-[11px] font-black uppercase text-slate-800 leading-tight mb-1">{recipe.name}</h4>
+                            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{recipe.category?.[0] || 'Otros'}</span>
+                          </div>
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${isSelected ? 'bg-indigo-500 text-white' : 'bg-slate-100 text-transparent'}`}>
+                            <Check size={14} />
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="space-y-8">
+                    {selectedRecipes.map((ref, idx) => {
+                      const recipe = recipes.find(r => r.id === ref.recipeId);
+                      if (!recipe) return null;
+
+                      return (
+                        <div key={ref.recipeId} className="bg-slate-50 rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
+                          <div className="bg-white p-6 border-b border-slate-200 flex justify-between items-center">
+                            <div className="flex items-center gap-4">
+                              <span className="w-8 h-8 bg-indigo-600 text-white rounded-lg flex items-center justify-center font-black text-xs">{idx + 1}</span>
+                              <div>
+                                <h4 className="font-black uppercase text-slate-800 leading-none">{recipe.name}</h4>
+                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Ratio: {(ref.pax / recipe.yieldQuantity).toFixed(2)}x</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
+                                <Users size={12} className="text-slate-400" />
+                                <span className="text-[10px] font-black text-slate-400 uppercase">Pax:</span>
+                                <input
+                                  type="number"
+                                  value={ref.pax}
+                                  onChange={(e) => {
+                                    const val = Number(e.target.value);
+                                    setSelectedRecipes(prev => prev.map(p => p.recipeId === ref.recipeId ? { ...p, pax: val } : p));
+                                  }}
+                                  className="w-12 bg-transparent outline-none font-black text-xs text-indigo-600 text-center"
+                                />
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setSelectedRecipes(prev => prev.map(p => p.recipeId === ref.recipeId ? { ...p, isVerified: !p.isVerified } : p));
+                                }}
+                                className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${ref.isVerified ? 'bg-emerald-500 text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-200'}`}
+                              >
+                                {ref.isVerified ? <Check size={12} /> : null} {ref.isVerified ? 'VERIFICADA' : 'VERIFICAR'}
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="space-y-4">
+                              <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                                <ShoppingCart size={14} className="text-indigo-500" /> Ajuste de Cantidades
+                              </h5>
+                              <div className="bg-white rounded-2xl border border-slate-100 divide-y divide-slate-50 overflow-hidden">
+                                {recipe.subRecipes.flatMap(sub => sub.ingredients).map((ing, iIdx) => {
+                                  const ratio = ref.pax / recipe.yieldQuantity;
+                                  const originalQty = parseQuantity(ing.quantity) * ratio;
+                                  const override = ref.ingredientOverrides[ing.name];
+
+                                  return (
+                                    <div key={iIdx} className="p-3 flex items-center justify-between group hover:bg-slate-50 transition-colors">
+                                      <span className="text-[10px] font-bold text-slate-600 uppercase truncate max-w-[50%]">{ing.name}</span>
+                                      <div className="flex items-center gap-2">
+                                        {override && (
+                                          <button
+                                            onClick={() => {
+                                              const next = { ...ref.ingredientOverrides };
+                                              delete next[ing.name];
+                                              setSelectedRecipes(prev => prev.map(p => p.recipeId === ref.recipeId ? { ...p, ingredientOverrides: next } : p));
+                                            }}
+                                            className="text-rose-400 hover:text-rose-600 p-1" title="Restaurar original"
+                                          >
+                                            <X size={10} />
+                                          </button>
+                                        )}
+                                        <div className={`flex items-center gap-1 px-2 py-1 rounded-lg border transition-all ${override ? 'bg-amber-50 border-amber-200 shadow-sm' : 'border-slate-100 group-hover:border-slate-200'}`}>
+                                          <input
+                                            type="text"
+                                            value={override ? override.quantity : originalQty.toFixed(2)}
+                                            onChange={(e) => {
+                                              const next = { ...ref.ingredientOverrides, [ing.name]: { quantity: e.target.value, unit: ing.unit } };
+                                              setSelectedRecipes(prev => prev.map(p => p.recipeId === ref.recipeId ? { ...p, ingredientOverrides: next } : p));
+                                            }}
+                                            className={`w-14 bg-transparent outline-none text-right font-black text-xs ${override ? 'text-amber-600' : 'text-slate-400'}`}
+                                          />
+                                          <span className="text-[9px] font-bold text-slate-400">{ing.unit}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            <div className="space-y-6">
+                              <div>
+                                <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2 mb-4">
+                                  <ClipboardList size={14} className="text-indigo-500" /> Checklist de Elaboraciones
+                                </h5>
+                                <div className="space-y-2">
+                                  {ref.checklist.map((item, cIdx) => (
+                                    <button
+                                      key={cIdx}
+                                      onClick={() => {
+                                        const next = [...ref.checklist];
+                                        next[cIdx].completed = !next[cIdx].completed;
+                                        setSelectedRecipes(prev => prev.map(p => p.recipeId === ref.recipeId ? { ...p, checklist: next } : p));
+                                      }}
+                                      className="w-full flex items-center gap-3 p-3 bg-white border border-slate-100 rounded-xl hover:translate-x-1 transition-all"
+                                    >
+                                      <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${item.completed ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-200 bg-slate-50'}`}>
+                                        {item.completed && <Check size={10} strokeWidth={4} />}
+                                      </div>
+                                      <span className={`text-[10px] font-black uppercase ${item.completed ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{item.name}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div>
+                                <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2 mb-3">
+                                  <FileText size={14} className="text-indigo-500" /> Memoria del Servicio
+                                </h5>
+                                <textarea
+                                  value={ref.serviceMemory}
+                                  onChange={(e) => {
+                                    setSelectedRecipes(prev => prev.map(p => p.recipeId === ref.recipeId ? { ...p, serviceMemory: e.target.value } : p));
+                                  }}
+                                  placeholder="Observaciones, reparos o notas del servicio..."
+                                  className="w-full h-24 p-4 bg-white border border-slate-100 rounded-2xl outline-none text-[11px] font-medium font-serif italic text-slate-600 focus:ring-4 focus:ring-indigo-50 transition-all shadow-inner"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -321,57 +495,78 @@ export const MenuPlanner: React.FC<MenuPlannerProps> = ({
       </div>
 
       {showShoppingList && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 md:p-8">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 md:p-8 no-print">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowShoppingList(false)}></div>
-          <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl relative z-10 flex flex-col max-h-[90vh] overflow-hidden">
-            <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-emerald-50/50">
+          <div className="bg-white w-full max-w-5xl rounded-[2.5rem] shadow-2xl relative z-10 flex flex-col max-h-[95vh] overflow-hidden">
+            <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-indigo-50/50">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-emerald-500 text-white rounded-2xl shadow-lg shadow-emerald-500/20">
+                <div className="p-3 bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-600/20">
                   <ShoppingCart size={24} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Lista de Compra</h3>
-                  <p className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">{title || 'Menú Seleccionado'}</p>
+                  <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">PEDIDO DE ECONOMATO</h3>
+                  <p className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em]">{title || 'Menú Seleccionado'}</p>
                 </div>
               </div>
-              <button onClick={() => setShowShoppingList(false)} className="p-2 hover:bg-white rounded-xl transition-colors"><X size={24} className="text-slate-400" /></button>
+              <div className="flex gap-2">
+                <button onClick={() => window.print()} className="px-6 py-3 bg-emerald-600 text-white rounded-xl shadow-lg shadow-emerald-600/20 font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-2">
+                  <Printer size={16} /> Imprimir Pedido
+                </button>
+                <button onClick={() => setShowShoppingList(false)} className="p-3 hover:bg-white rounded-xl transition-colors"><X size={24} className="text-slate-400" /></button>
+              </div>
             </div>
 
-            <div className="p-8 overflow-y-auto flex-grow print:p-0">
-              <div className="bg-slate-50 rounded-3xl p-6 border border-slate-100 mb-6 flex justify-between items-center group">
-                <div className="space-y-1">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Información del Pedido</p>
-                  <p className="text-lg font-bold text-slate-800">{pax} PAX <span className="text-slate-300 mx-2">|</span> {new Date(date).toLocaleDateString()}</p>
+            <div className="p-10 overflow-y-auto flex-grow print:p-0 print:overflow-visible bg-white">
+              <div className="mb-8 border-b-2 border-slate-900 pb-4 hidden print:block">
+                <div className="flex justify-between items-end">
+                  <div>
+                    <h1 className="text-2xl font-black text-slate-900 uppercase">PEDIDO DE MATERIA PRIMA</h1>
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{settings.instituteName}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-black uppercase">{title}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{new Date(date).toLocaleDateString()} | {pax} PAX</p>
+                  </div>
                 </div>
-                <button onClick={() => window.print()} className="p-4 bg-white text-slate-600 rounded-2xl shadow-sm border border-slate-100 hover:text-slate-900 transition-all active:scale-95 group-hover:shadow-md">
-                  <Printer size={20} />
-                </button>
               </div>
 
-              <div className="space-y-3">
-                {calculateShoppingList().map(([name, data]) => (
-                  <div key={name} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl hover:border-emerald-200 transition-all hover:translate-x-1 group">
-                    <div className="flex items-center gap-4">
-                      <div className="w-2 h-2 rounded-full bg-emerald-500 opacity-20 group-hover:opacity-100 transition-opacity"></div>
-                      <span className="text-[11px] font-black text-slate-700 uppercase">{name}</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 print:grid-cols-3 gap-x-8 gap-y-4 items-start">
+                {calculateShoppingList().map(([family, items]) => (
+                  <div key={family} className="break-inside-avoid mb-2 border border-slate-50 p-3 rounded-xl print:p-0 print:border-0">
+                    <h4 className="text-[9px] font-black text-white bg-slate-900 px-2 py-1 rounded mb-2 uppercase tracking-tighter inline-block">
+                      {family}
+                    </h4>
+                    <div className="space-y-0.5">
+                      {Object.entries(items).sort((a, b) => a[0].localeCompare(b[0])).map(([name, data]) => (
+                        <div key={name} className="flex justify-between items-baseline gap-1 group border-b border-slate-50 pb-0.5">
+                          <span className="text-[8px] font-bold text-slate-700 uppercase leading-none truncate flex-grow">{name}</span>
+                          <span className="text-[10px] font-black text-slate-900 whitespace-nowrap tabular-nums tracking-tighter">
+                            {formatNormalized(data.total, data.base)}
+                          </span>
+                        </div>
+                      ))}
                     </div>
-                    <span className="text-sm font-black text-slate-900 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">{formatNormalized(data.total, data.base)}</span>
                   </div>
                 ))}
-                {calculateShoppingList().length === 0 && (
-                  <div className="text-center py-10">
-                    <p className="text-slate-400 font-bold uppercase text-[10px]">No hay ingredientes para calcular</p>
-                  </div>
-                )}
               </div>
+
+              {calculateShoppingList().length === 0 && (
+                <div className="text-center py-20">
+                  <AlertTriangle size={48} className="text-amber-200 mx-auto mb-4" />
+                  <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">No hay ingredientes validados para este servicio</p>
+                </div>
+              )}
             </div>
 
-            <div className="p-8 border-t border-slate-100 flex justify-end gap-3 no-print">
+            <div className="p-8 border-t border-slate-100 flex justify-between items-center bg-slate-50 no-print">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <Info size={14} className="text-amber-500" /> Diseño extra-compacto optimizado para ahorro de papel (Multi-columna)
+              </p>
               <button
                 onClick={() => setShowShoppingList(false)}
                 className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest hover:bg-slate-800 shadow-xl transition-all active:scale-95"
               >
-                Cerrar Lista
+                Cerrar Pedido
               </button>
             </div>
           </div>
