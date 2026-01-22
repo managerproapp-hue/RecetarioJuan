@@ -327,6 +327,11 @@ function AppContent() {
 
   const isDataLoading = recipesLoading || settingsLoading || productsLoading || menusLoading || authLoading;
 
+  const syncedRecipes = useMemo(() =>
+    syncRecipesWithProducts(recipes, productDatabase),
+    [recipes, productDatabase]
+  );
+
   const [viewState, setViewState] = useState<ViewState>('dashboard');
   const [currentRecipe, setCurrentRecipe] = useState<Recipe | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -667,7 +672,7 @@ function AppContent() {
         />
       ) : (
         <Dashboard
-          recipes={useMemo(() => syncRecipesWithProducts(recipes, productDatabase), [recipes, productDatabase])}
+          recipes={syncedRecipes}
           settings={settings}
           savedMenus={savedMenus}
           productDatabase={productDatabase}
