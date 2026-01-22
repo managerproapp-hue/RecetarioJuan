@@ -76,13 +76,41 @@ BEGIN
                     recipe_item->>'creator',
                     COALESCE((recipe_item->>'isPublic')::BOOLEAN, false),
                     user_id,
-                    COALESCE((recipe_item->>'totalCost')::NUMERIC, 0),
+                    COALESCE((recipe_item->>'totalCost')::NUMERIC, (recipe_item->>'total_cost')::NUMERIC, 0),
                     COALESCE((recipe_item->>'lastModified')::BIGINT / 1000 * interval '1 second' + '1970-01-01'::timestamp, now()),
                     recipe_item
                 )
-                ON CONFLICT (id) DO NOTHING;
+                ON CONFLICT (id) DO UPDATE SET 
+                    all_content = EXCLUDED.all_content,
+                    total_cost = EXCLUDED.total_cost;
                 migrated_count := migrated_count + 1;
             END LOOP;
+        ELSIF jsonb_typeof(store_row.value) = 'object' AND (store_row.value ? 'name' OR store_row.value ? 'id') THEN
+            recipe_item := store_row.value;
+            INSERT INTO public.recipes (
+                id, name, category, photo, creator, is_public, owner_id, total_cost, last_modified, all_content
+            ) VALUES (
+                COALESCE((recipe_item->>'id'), store_row.key),
+                COALESCE(recipe_item->>'name', 'Receta sin nombre'),
+                CASE 
+                    WHEN jsonb_typeof(recipe_item->'category') = 'array' 
+                    THEN COALESCE(ARRAY(SELECT jsonb_array_elements_text(recipe_item->'category')), '{}')
+                    WHEN jsonb_typeof(recipe_item->'category') = 'string'
+                    THEN ARRAY[recipe_item->>'category']
+                    ELSE '{}'
+                END,
+                recipe_item->>'photo',
+                recipe_item->>'creator',
+                COALESCE((recipe_item->>'isPublic')::BOOLEAN, false),
+                user_id,
+                COALESCE((recipe_item->>'totalCost')::NUMERIC, (recipe_item->>'total_cost')::NUMERIC, 0),
+                COALESCE((recipe_item->>'lastModified')::BIGINT / 1000 * interval '1 second' + '1970-01-01'::timestamp, now()),
+                recipe_item
+            )
+            ON CONFLICT (id) DO UPDATE SET 
+                all_content = EXCLUDED.all_content,
+                total_cost = EXCLUDED.total_cost;
+            migrated_count := migrated_count + 1;
         END IF;
     END LOOP;
     RAISE NOTICE 'Migración completada: % recetas procesadas.', migrated_count;

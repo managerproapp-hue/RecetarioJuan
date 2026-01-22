@@ -25,6 +25,8 @@ export function useRecipes(userId?: string) {
             // Map the DB rows back to the Recipe type format (ignoring full content for now)
             const lightRecipes: Recipe[] = (data || []).map(row => ({
                 ...row,
+                totalCost: row.total_cost,
+                isPublic: row.is_public,
                 subRecipes: [], // Empty for light view
                 serviceDetails: { presentation: '', servingTemp: '', cutlery: '', passTime: '', serviceType: '', clientDescription: '' },
                 platingInstructions: '',

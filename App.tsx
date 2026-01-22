@@ -365,8 +365,13 @@ function AppContent() {
   }
 
   const migrateRecipeIfNeeded = (r: Recipe): Recipe => {
-    const legacy = r as unknown as LegacyRecipe;
-    const updatedSubRecipes = (legacy.subRecipes || []).map((sr) => {
+    const legacy = r as any;
+
+    // 1. Detect existing sub-recipes with different possible keys
+    const rawSubRecipes = legacy.subRecipes || legacy.sub_recipes || legacy.subrecipes || legacy.elaborations || [];
+
+    const updatedSubRecipes = rawSubRecipes.map((sr: any) => {
+      // Migrate old photo format to array
       if (sr.photo !== undefined && sr.photos === undefined) {
         return {
           ...sr,
@@ -377,27 +382,31 @@ function AppContent() {
       return sr as SubRecipe;
     });
 
-    if (legacy.subRecipes && legacy.subRecipes.length > 0 && updatedSubRecipes === (legacy.subRecipes as unknown as SubRecipe[])) return r;
+    // 2. Map snake_case to camelCase inside the object if needed
+    const totalCost = legacy.totalCost ?? legacy.total_cost ?? 0;
+    const isPublic = legacy.isPublic ?? legacy.is_public ?? false;
 
     return {
       ...r,
+      totalCost,
+      isPublic,
       category: Array.isArray(r.category) ? r.category : [r.category].filter(Boolean) as string[],
       creator: legacy.creator || settings.teacherName,
       subRecipes: updatedSubRecipes.length > 0 ? updatedSubRecipes : [{
         id: 'legacy-1',
         name: 'Elaboración Principal',
-        ingredients: legacy.ingredients || [],
-        instructions: legacy.instructions || '',
-        photos: legacy.photo ? [legacy.photo] : []
+        ingredients: legacy.ingredients || legacy.ingredients_list || [],
+        instructions: legacy.instructions || legacy.elaboracion || '',
+        photos: (legacy.photo || legacy.image) ? [legacy.photo || legacy.image] : []
       }],
-      platingInstructions: legacy.platingInstructions || '',
+      platingInstructions: legacy.platingInstructions || legacy.emplatado || '',
       serviceDetails: legacy.serviceDetails || {
-        presentation: '',
-        servingTemp: '',
-        cutlery: '',
-        passTime: '',
-        serviceType: 'Servicio a la Americana',
-        clientDescription: ''
+        presentation: legacy.presentation || '',
+        servingTemp: legacy.servingTemp || '',
+        cutlery: legacy.cutlery || '',
+        passTime: legacy.passTime || '',
+        serviceType: legacy.serviceType || 'Servicio a la Americana',
+        clientDescription: legacy.clientDescription || ''
       }
     };
   };
