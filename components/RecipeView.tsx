@@ -1,16 +1,17 @@
 import React, { useMemo, useState } from 'react';
 import { Recipe, AppSettings, Allergen, ALLERGEN_LIST, ALLERGEN_ICONS, SERVICE_TYPES } from '../types';
 import { parseQuantity, formatQuantity } from '../utils';
-import { Printer, ArrowLeft, AlertOctagon, Utensils, Thermometer, ChefHat, Users, Clock, UtensilsCrossed, MessageSquare, Info, Camera, Download } from 'lucide-react';
+import { Printer, ArrowLeft, AlertOctagon, Utensils, Thermometer, ChefHat, Users, Clock, UtensilsCrossed, MessageSquare, Info, Camera, Download, FileJson } from 'lucide-react';
 
 interface RecipeViewProps {
   recipe: Recipe;
   onBack: () => void;
   settings: AppSettings;
   onStartCooking?: () => void;
+  onExport?: (recipe: Recipe) => void;
 }
 
-export const RecipeView: React.FC<RecipeViewProps> = ({ recipe, onBack, settings, onStartCooking }) => {
+export const RecipeView: React.FC<RecipeViewProps> = ({ recipe, onBack, settings, onStartCooking, onExport }) => {
   const [dynamicPax, setDynamicPax] = useState<number>(recipe.yieldQuantity);
 
   const paxRatio = useMemo(() => {
@@ -74,7 +75,13 @@ export const RecipeView: React.FC<RecipeViewProps> = ({ recipe, onBack, settings
               onClick={() => window.print()}
               className="px-6 py-3 bg-white text-slate-900 border border-slate-200 rounded-2xl hover:bg-slate-50 flex items-center gap-2 shadow-sm font-black uppercase text-[10px] tracking-widest transition-all"
             >
-              <Download size={18} /> Guardar Receta (PDF)
+              <Printer size={18} /> Imprimir / PDF
+            </button>
+            <button
+              onClick={() => onExport?.(recipe)}
+              className="px-6 py-3 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-500 flex items-center gap-2 shadow-lg shadow-emerald-200 font-black uppercase text-[10px] tracking-widest transition-all"
+            >
+              <FileJson size={18} /> Descargar (.json)
             </button>
           </div>
         </div>

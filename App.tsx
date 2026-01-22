@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Recipe, AppSettings, AppBackup, Product, MenuPlan, DEFAULT_CATEGORIES, DEFAULT_PRODUCT_FAMILIES, SubRecipe } from './types';
 import { useCloudSync } from './hooks/useCloudSync';
 import { useProducts } from './hooks/useProducts';
+import { useRecipes } from './hooks/useRecipes';
 import { CookingMode } from './components/CookingMode';
 import { Dashboard } from './components/Dashboard';
 import { RecipeEditor } from './components/RecipeEditor';
@@ -122,7 +123,15 @@ function AppContent() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  const [recipes, setRecipes, recipesLoading] = useCloudSync<Recipe[]>('recipes', [], user?.id);
+  const {
+    recipes,
+    loading: recipesLoading,
+    saveRecipe,
+    deleteRecipe,
+    fetchRecipeDetail,
+    refresh: refreshRecipes
+  } = useRecipes(user?.id);
+
   const [settings, setSettings, settingsLoading] = useCloudSync<AppSettings>('appSettings', defaultSettings, user?.id);
 
   // 🔄 SHARED DATABASE: New unified products table
@@ -148,7 +157,11 @@ function AppContent() {
 
   useEffect(() => {
     if (!user) return;
-    fetchCommunityRecipes();
+
+    // DELAY community fetch to prioritize personal recipes
+    const timer = setTimeout(() => {
+      fetchCommunityRecipes();
+    }, 2000);
 
     // 🔄 REALTIME: Listen for community recipes changes
     const recipesChannel = supabase
@@ -189,46 +202,34 @@ function AppContent() {
     return () => {
       supabase.removeChannel(recipesChannel);
       supabase.removeChannel(profileChannel);
+      clearTimeout(timer);
     };
   }, [user]);
 
   const fetchCommunityRecipes = async () => {
     try {
       setCommunityLoading(true);
-      console.log('[fetchCommunityRecipes] Fetching all recipes from store...');
+      console.log('[fetchCommunityRecipes] 🔍 Fetching public recipes from recipes table...');
+
       const { data, error } = await supabase
-        .from('store')
-        .select('key, value')
-        .like('key', 'recipes%');
+        .from('recipes')
+        .select('all_content')
+        .eq('is_public', true)
+        .order('last_modified', { ascending: false })
+        .limit(200);
 
-      if (error) {
-        console.error('[fetchCommunityRecipes] Error fetching recipes:', error);
-        throw error;
-      }
+      if (error) throw error;
 
-      console.log(`[fetchCommunityRecipes] Found ${data?.length || 0} recipe entries in store`);
-      const allRecipes: Recipe[] = [];
-      data.forEach(item => {
-        if (Array.isArray(item.value)) {
-          // Extraer ID del dueño de la clave si existe (recipes:ID)
-          const ownerIdFromKey = item.key.includes(':') ? item.key.split(':')[1] : null;
-          console.log(`[fetchCommunityRecipes] Processing key "${item.key}" with ${item.value.length} recipes`);
-          item.value.forEach((r: Recipe) => {
-            // Mostramos todas las públicas (incluidas las propias para verificar que están ahí)
-            if (r.isPublic) {
-              allRecipes.push({ ...r, ownerId: r.ownerId || ownerIdFromKey });
-            }
-          });
-        }
-      });
-      console.log(`[fetchCommunityRecipes] Found ${allRecipes.length} public recipes total`);
-      setCommunityRecipes(allRecipes);
-    } catch (err) {
-      console.error('[fetchCommunityRecipes] Error fetching community recipes:', err);
+      const publicRecipes: Recipe[] = (data || []).map(row => row.all_content as Recipe);
+      console.log(`[fetchCommunityRecipes] ✅ Found ${publicRecipes.length} public recipes`);
+      setCommunityRecipes(publicRecipes);
+    } catch (error: any) {
+      console.error('[fetchCommunityRecipes] ❌ Error:', error);
     } finally {
       setCommunityLoading(false);
     }
   };
+
 
   useEffect(() => {
     const initSession = async () => {
@@ -401,24 +402,63 @@ function AppContent() {
     };
   };
 
-  const handleEdit = (recipe: Recipe) => {
-    setCurrentRecipe(migrateRecipeIfNeeded(recipe));
+  const handleEdit = async (recipe: Recipe) => {
+    // Si la receta no tiene subRecipes, es que es la versión "light" del dashboard
+    if (!recipe.subRecipes || recipe.subRecipes.length === 0) {
+      const fullRecipe = await fetchRecipeDetail(recipe.id);
+      if (fullRecipe) {
+        setCurrentRecipe(migrateRecipeIfNeeded(fullRecipe));
+      } else {
+        setCurrentRecipe(migrateRecipeIfNeeded(recipe));
+      }
+    } else {
+      setCurrentRecipe(migrateRecipeIfNeeded(recipe));
+    }
     setViewState('editor');
   };
 
-  const handleView = (recipe: Recipe) => {
-    setCurrentRecipe(migrateRecipeIfNeeded(recipe));
+  const handleView = async (recipe: Recipe) => {
+    if (!recipe.subRecipes || recipe.subRecipes.length === 0) {
+      const fullRecipe = await fetchRecipeDetail(recipe.id);
+      if (fullRecipe) {
+        setCurrentRecipe(migrateRecipeIfNeeded(fullRecipe));
+      } else {
+        setCurrentRecipe(migrateRecipeIfNeeded(recipe));
+      }
+    } else {
+      setCurrentRecipe(migrateRecipeIfNeeded(recipe));
+    }
     setViewState('view');
   };
 
-  const handleSave = (recipe: Recipe) => {
-    const recipeWithOwner = { ...recipe, ownerId: user?.id };
-    setRecipes(prev => {
-      const exists = prev.find(r => r.id === recipe.id);
-      return exists ? prev.map(r => r.id === recipe.id ? recipeWithOwner : r) : [recipeWithOwner, ...prev];
+  const handleSave = async (recipe: Recipe) => {
+    const recipeWithOwner = {
+      ...recipe,
+      ownerId: user?.id,
+      lastModified: Date.now()
+    };
+
+    console.log('[handleSave] 💾 Saving recipe:', {
+      id: recipeWithOwner.id,
+      name: recipeWithOwner.name,
+      ownerId: recipeWithOwner.ownerId,
+      isPublic: recipeWithOwner.isPublic
     });
-    setViewState('dashboard');
-    setCurrentRecipe(null);
+
+    try {
+      await saveRecipe(recipeWithOwner);
+
+      // Si la receta es pública, refrescar la vista de comunidad
+      if (recipeWithOwner.isPublic) {
+        console.log('[handleSave] 🌍 Recipe is public, refreshing community recipes...');
+        fetchCommunityRecipes();
+      }
+
+      setViewState('dashboard');
+      setCurrentRecipe(null);
+    } catch (err: any) {
+      alert('Error al guardar la receta: ' + err.message);
+    }
   };
 
   const handleMigrate = async () => {
@@ -447,20 +487,49 @@ function AppContent() {
       .single();
 
     if (!legacyError && legacyData?.value && Array.isArray(legacyData.value)) {
-      setRecipes(prev => {
-        const merged = [...prev];
-        legacyData.value.forEach((r: Recipe) => {
-          if (!merged.some(existing => existing.id === r.id)) {
-            merged.push({ ...r, ownerId: profile.id });
-          }
-        });
-        return merged;
-      });
+      for (const r of legacyData.value) {
+        await saveRecipe({ ...r, ownerId: profile.id });
+      }
       console.log(`Migrated ${legacyData.value.length} legacy recipes`);
     }
 
     await refreshProducts();
     console.log('Manual migration finished');
+  };
+
+  const handleExportRecipe = (recipe: Recipe) => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(recipe, null, 2));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", `${recipe.name.replace(/\s+/g, '_')}.json`);
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+  };
+
+  const handleImportFromFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const importedRecipe = JSON.parse(e.target?.result as string) as Recipe;
+        // Limpiamos el ID para que se cree como nueva si es un import externo, 
+        // o mantenemos si es backup propio.
+        const cloned = {
+          ...importedRecipe,
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+          ownerId: profile?.id,
+          lastModified: Date.now()
+        };
+        await saveRecipe(cloned);
+        alert(`¡Receta "${cloned.name}" importada correctamente!`);
+      } catch (err) {
+        alert('Error al importar el archivo: Formato no válido.');
+      }
+    };
+    reader.readAsText(file);
   };
 
   if (!user) {
@@ -487,8 +556,12 @@ function AppContent() {
         recipes={recipes}
         productDatabase={productDatabase}
         onSave={setSettings}
-        onRestore={(backup) => {
-          setRecipes(backup.recipes);
+        onRestore={async (backup) => {
+          if (backup.recipes) {
+            for (const r of backup.recipes) {
+              await saveRecipe(r);
+            }
+          }
           setSettings(backup.settings);
           if (backup.productDatabase && profile?.role === 'admin') {
             backup.productDatabase.forEach(p => handleAddProduct(p));
@@ -504,6 +577,7 @@ function AppContent() {
           onBack={() => setViewState('dashboard')}
           settings={settings}
           onStartCooking={() => setViewState('cooking')}
+          onExport={handleExportRecipe}
         />
       ) : viewState === 'cooking' && currentRecipe ? (
         <CookingMode recipe={currentRecipe} onBack={() => setViewState('view')} />
@@ -520,7 +594,7 @@ function AppContent() {
         <AIBridge
           settings={settings}
           onBack={() => setViewState('dashboard')}
-          onImport={(recipe) => {
+          onImport={async (recipe) => {
             const cloned = {
               ...recipe,
               id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
@@ -528,7 +602,7 @@ function AppContent() {
               isPublic: false,
               lastModified: Date.now()
             };
-            setRecipes(prev => [cloned, ...prev]);
+            await saveRecipe(cloned);
             setViewState('dashboard');
           }}
         />
@@ -593,8 +667,12 @@ function AppContent() {
           onNew={handleCreateNew}
           onEdit={handleEdit}
           onView={handleView}
-          onDelete={(id) => setRecipes(recipes.filter(r => r.id !== id))}
-          onImport={(r) => {
+          onDelete={async (id) => {
+            if (confirm('¿Estás seguro de que deseas eliminar esta receta?')) {
+              await deleteRecipe(id);
+            }
+          }}
+          onImport={async (r) => {
             const cloned = {
               ...r,
               id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
@@ -602,7 +680,7 @@ function AppContent() {
               isPublic: false,
               lastModified: Date.now()
             };
-            setRecipes(prev => [cloned, ...prev]);
+            await saveRecipe(cloned);
             alert('¡Receta añadida a tu recetario personal!');
           }}
           onOpenSettings={() => setIsSettingsOpen(true)}
@@ -612,6 +690,8 @@ function AppContent() {
           onOpenAdmin={() => setViewState('admin')}
           onLogout={handleLogout}
           onUpdateRecipe={handleSave}
+          onExport={handleExportRecipe}
+          onImportFromFile={handleImportFromFile}
         />
       )}
     </>

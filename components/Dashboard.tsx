@@ -15,6 +15,8 @@ interface DashboardProps {
   onView: (recipe: Recipe) => void;
   onDelete: (id: string) => void;
   onImport: (recipe: Recipe) => void;
+  onExport?: (recipe: Recipe) => void;
+  onImportFromFile?: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onOpenSettings: () => void;
   onOpenMenuPlanner: () => void;
   onOpenProductDB: () => void;
@@ -25,7 +27,7 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
-  recipes, settings, savedMenus, productDatabase, currentProfile, communityRecipes = [], onNew, onEdit, onView, onDelete, onImport, onOpenSettings, onOpenMenuPlanner, onOpenProductDB, onOpenAIBridge, onOpenAdmin, onLogout, onUpdateRecipe
+  recipes, settings, savedMenus, productDatabase, currentProfile, communityRecipes = [], onNew, onEdit, onView, onDelete, onImport, onExport, onImportFromFile, onOpenSettings, onOpenMenuPlanner, onOpenProductDB, onOpenAIBridge, onOpenAdmin, onLogout, onUpdateRecipe
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeView, setActiveView] = useState<'personal' | 'community'>('personal');
@@ -35,6 +37,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const displayRecipes = activeView === 'personal' ? recipes : communityRecipes;
   const sortedRecipes = [...displayRecipes].sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log('[Dashboard] 📊 Recipe display update:', {
+      activeView,
+      personalRecipesCount: recipes.length,
+      communityRecipesCount: communityRecipes.length,
+      displayingCount: displayRecipes.length,
+      currentProfile: currentProfile?.email
+    });
+
+    if (displayRecipes.length === 0) {
+      console.warn('[Dashboard] ⚠️ No recipes to display!', {
+        activeView,
+        recipesAvailable: recipes.length,
+        communityAvailable: communityRecipes.length
+      });
+    }
+  }, [activeView, recipes.length, communityRecipes.length]);
 
   const filteredRecipes = sortedRecipes.filter(r =>
   (r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -52,16 +73,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const handleImportClick = () => fileInputRef.current?.click();
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const json = JSON.parse(e.target?.result as string);
-        if (json.name) onImport({ ...json, id: Date.now().toString(), lastModified: Date.now() });
-      } catch (err) { alert('Archivo no válido.'); }
-    };
-    reader.readAsText(file);
+    if (onImportFromFile) {
+      onImportFromFile(event);
+    } else {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const json = JSON.parse(e.target?.result as string);
+          if (json.name) onImport({ ...json, id: Date.now().toString(), lastModified: Date.now() });
+        } catch (err) { alert('Archivo no válido.'); }
+      };
+      reader.readAsText(file);
+    }
     event.target.value = '';
   };
 
@@ -336,18 +361,34 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         {activeView === 'personal' && (
                           <>
                             <button
-                              onClick={() => onEdit(recipe)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEdit(recipe);
+                              }}
                               className="p-3 bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 rounded-2xl transition-all"
                               title="Editar"
                             >
                               <Edit2 size={18} />
                             </button>
                             <button
-                              onClick={() => confirm(`¿Borrar ${recipe.name}?`) && onDelete(recipe.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm(`¿Borrar ${recipe.name}?`)) onDelete(recipe.id);
+                              }}
                               className="p-3 bg-slate-50 text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-2xl transition-all"
                               title="Eliminar"
                             >
                               <Trash2 size={18} />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onExport?.(recipe);
+                              }}
+                              className="p-3 bg-slate-50 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 rounded-2xl transition-all"
+                              title="Exportar a archivo .json"
+                            >
+                              <FileJson size={18} />
                             </button>
                           </>
                         )}
@@ -386,6 +427,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </div >
   );
 };

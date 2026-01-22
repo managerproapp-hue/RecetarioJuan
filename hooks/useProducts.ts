@@ -35,7 +35,8 @@ export function useProducts(userProfile: any) {
             const { data, error } = await supabase
                 .from('products')
                 .select('*')
-                .order('name', { ascending: true });
+                .order('name', { ascending: true })
+                .limit(5000); // Bypass default 1000 limit
 
             if (error) throw error;
 
