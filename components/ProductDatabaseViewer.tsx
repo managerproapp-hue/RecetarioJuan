@@ -50,9 +50,19 @@ export const ProductDatabaseViewer: React.FC<ProductDatabaseViewerProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filteredProducts = useMemo(() => {
-    const term = searchTerm.toLowerCase();
+    const term = searchTerm.toLowerCase().trim();
+    // Simple stemming for spanish: remove trailing 's' or 'es' manually for better matching
+    // This is a naive implementation but works for "ajo" vs "ajos"
+    const searchTerms = [term];
+    if (term.endsWith('s')) searchTerms.push(term.slice(0, -1));
+    if (term.endsWith('es')) searchTerms.push(term.slice(0, -2));
+
     return products
-      .filter(p => p.name.toLowerCase().includes(term) || (p.category || "").toLowerCase().includes(term))
+      .filter(p => {
+        const name = p.name.toLowerCase();
+        const cat = (p.category || "").toLowerCase();
+        return searchTerms.some(t => name.includes(t) || cat.includes(t));
+      })
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [products, searchTerm]);
 

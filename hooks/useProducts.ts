@@ -32,16 +32,34 @@ export function useProducts(userProfile: any) {
     const fetchProducts = async () => {
         try {
             setLoading(true);
-            const { data, error } = await supabase
-                .from('products')
-                .select('*')
-                .order('name', { ascending: true })
-                .limit(5000); // Bypass default 1000 limit
+            let allProducts: any[] = [];
+            let from = 0;
+            const step = 1000;
+            let hasMore = true;
 
-            if (error) throw error;
+            while (hasMore) {
+                const { data, error } = await supabase
+                    .from('products')
+                    .select('*')
+                    .order('name', { ascending: true })
+                    .range(from, from + step - 1);
+
+                if (error) throw error;
+
+                if (data) {
+                    allProducts = [...allProducts, ...data];
+                    if (data.length < step) {
+                        hasMore = false;
+                    } else {
+                        from += step;
+                    }
+                } else {
+                    hasMore = false;
+                }
+            }
 
             // Map DB fields to Frontend fields if necessary (snake_case to camelCase)
-            const mapped = (data || []).map(p => ({
+            const mapped = (allProducts || []).map(p => ({
                 id: p.id,
                 name: p.name,
                 category: p.category,

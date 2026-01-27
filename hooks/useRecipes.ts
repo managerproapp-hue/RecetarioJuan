@@ -16,22 +16,22 @@ export function useRecipes(userId?: string) {
 
             const { data, error } = await supabase
                 .from('recipes')
-                .select('id, name, category, photo, creator, is_public, owner_id, total_cost, last_modified, last_accessed_at')
+                .select('*, all_content')
                 .order('last_accessed_at', { ascending: false })
-                .limit(100); // Fetch more than 20 for the "Metadata" view, but without the heavy 'all_content'
+                .limit(200);
 
             if (error) throw error;
 
-            // Map the DB rows back to the Recipe type format (ignoring full content for now)
-            const lightRecipes: Recipe[] = (data || []).map(row => ({
-                ...row,
-                totalCost: row.total_cost,
-                isPublic: row.is_public,
-                subRecipes: [], // Empty for light view
-                serviceDetails: { presentation: '', servingTemp: '', cutlery: '', passTime: '', serviceType: '', clientDescription: '' },
-                platingInstructions: '',
-                lastModified: new Date(row.last_modified).getTime()
-            } as unknown as Recipe));
+            const lightRecipes: Recipe[] = (data || []).map(row => {
+                const fullData = row.all_content as Recipe;
+                return {
+                    ...fullData,
+                    id: row.id,
+                    totalCost: row.total_cost || fullData.totalCost || 0,
+                    isPublic: row.is_public,
+                    lastModified: new Date(row.last_modified).getTime()
+                };
+            });
 
             setRecipes(lightRecipes);
         } catch (err: any) {

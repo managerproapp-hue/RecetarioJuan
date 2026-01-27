@@ -24,48 +24,38 @@ import { UserProfile } from './types';
 
 const syncRecipesWithProducts = (recipes: Recipe[], products: Product[]): Recipe[] => {
   return recipes.map(recipe => {
-    let recipeHasChanges = false;
     const updatedSubRecipes = (recipe.subRecipes || []).map(sub => {
-      let subHasChanges = false;
       const updatedIngredients = sub.ingredients.map(ing => {
         const product = products.find(p => p.name.toUpperCase() === ing.name.toUpperCase());
         if (product) {
-          const qtyNum = parseFloat(ing.quantity.replace(',', '.'));
+          const qtyString = typeof ing.quantity === 'string' ? ing.quantity : String(ing.quantity);
+          const qtyNum = parseFloat(qtyString.replace(',', '.'));
+
           if (!isNaN(qtyNum)) {
             const factor = convertUnit(1, ing.unit, product.unit);
             const priceInRecipeUnit = product.pricePerUnit * factor;
             const newCost = qtyNum * priceInRecipeUnit;
 
-            const allergensChanged = JSON.stringify(ing.allergens) !== JSON.stringify(product.allergens);
-            if (ing.pricePerUnit !== priceInRecipeUnit || ing.cost !== newCost || allergensChanged) {
-              subHasChanges = true;
-              return {
-                ...ing,
-                pricePerUnit: priceInRecipeUnit,
-                allergens: product.allergens,
-                category: product.category,
-                cost: newCost
-              };
-            }
+            return {
+              ...ing,
+              pricePerUnit: priceInRecipeUnit,
+              allergens: product.allergens,
+              category: product.category,
+              cost: newCost
+            };
           }
         }
         return ing;
       });
 
-      if (subHasChanges) {
-        recipeHasChanges = true;
-        return { ...sub, ingredients: updatedIngredients };
-      }
-      return sub;
+      return { ...sub, ingredients: updatedIngredients };
     });
 
-    if (recipeHasChanges) {
-      const totalCost = updatedSubRecipes.reduce((acc, sub) =>
-        acc + sub.ingredients.reduce((sAcc, ing) => sAcc + (ing.cost || 0), 0), 0
-      );
-      return { ...recipe, subRecipes: updatedSubRecipes, totalCost };
-    }
-    return recipe;
+    const totalCost = updatedSubRecipes.reduce((acc, sub) =>
+      acc + sub.ingredients.reduce((sAcc, ing) => sAcc + (ing.cost || 0), 0), 0
+    );
+
+    return { ...recipe, subRecipes: updatedSubRecipes, totalCost };
   });
 };
 

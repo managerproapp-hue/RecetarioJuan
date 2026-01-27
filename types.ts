@@ -100,6 +100,15 @@ export interface MenuRecipeReference {
   serviceMemory: string;
   checklist: { id: string; name: string; completed: boolean }[];
   ingredientOverrides: Record<string, { quantity: string; unit: string }>; // key is ingredient id or name
+  subRecipeModifications?: Record<string, { instructions?: string }>; // key is subRecipeId
+  manualChecklist?: { id: string; name: string; completed: boolean }[];
+}
+
+export interface MenuItemOverride {
+  name: string;
+  quantity: number;
+  unit: string;
+  family: string;
 }
 
 export interface MenuPlan {
@@ -109,6 +118,8 @@ export interface MenuPlan {
   pax: number;
   recipes: MenuRecipeReference[];
   lastModified: number;
+  extraOrderItems?: MenuItemOverride[];
+  excludedOrderItems?: string[]; // List of ingredient names to exclude
 }
 
 export interface AppSettings {

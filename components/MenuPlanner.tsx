@@ -3,7 +3,7 @@ import { Recipe, AppSettings, Product, MenuPlan, MenuRecipeReference } from '../
 import {
   ArrowLeft, Plus, Trash2, Calendar, Users, Save,
   ChefHat, Search, BookOpen, Clock, FileText, Download, Check, ShoppingCart, X, Printer,
-  ClipboardList, AlertTriangle, Info
+  ClipboardList, AlertTriangle, Info, Edit2, Archive, EyeOff
 } from 'lucide-react';
 import { parseQuantity, normalizeToBasics, formatNormalized } from '../utils';
 
@@ -67,7 +67,9 @@ export const MenuPlanner: React.FC<MenuPlannerProps> = ({
       date,
       pax,
       recipes: selectedRecipes,
-      lastModified: Date.now()
+      lastModified: Date.now(),
+      extraOrderItems: extraOrderItems,
+      excludedOrderItems: excludedOrderItems
     };
 
     onSaveMenu(menu);
@@ -86,16 +88,33 @@ export const MenuPlanner: React.FC<MenuPlannerProps> = ({
           isVerified: false,
           serviceMemory: '',
           checklist: (recipe.subRecipes || []).map(sub => ({ id: sub.id, name: sub.name, completed: false })),
-          ingredientOverrides: {}
+          ingredientOverrides: {},
+          subRecipeModifications: {},
+          manualChecklist: []
         };
         return [...prev, newRef];
       }
     });
   };
 
+  const [extraOrderItems, setExtraOrderItems] = useState<{ name: string, quantity: number, unit: string, family: string }[]>([]);
+  const [excludedOrderItems, setExcludedOrderItems] = useState<string[]>([]);
+
+  // Load extras/excluded when editing a menu
+  React.useEffect(() => {
+    if (editingMenu) {
+      setExtraOrderItems(editingMenu.extraOrderItems || []);
+      setExcludedOrderItems(editingMenu.excludedOrderItems || []);
+    } else {
+      setExtraOrderItems([]);
+      setExcludedOrderItems([]);
+    }
+  }, [editingMenu]);
+
   const calculateShoppingList = () => {
-    // Group by family -> product name
+    // 1. Calculate Base Ingredients from Recipes
     const groupedList: Record<string, Record<string, { total: number, base: 'g' | 'ml' | 'ud' }>> = {};
+    const excludedList: Record<string, { total: number, base: 'g' | 'ml' | 'ud' }> = {};
 
     selectedRecipes.forEach(ref => {
       const recipe = recipes.find(r => r.id === ref.recipeId);
@@ -106,12 +125,24 @@ export const MenuPlanner: React.FC<MenuPlannerProps> = ({
       recipe.subRecipes?.forEach(sub => {
         sub.ingredients?.forEach(ing => {
           let qty = parseQuantity(ing.quantity) * ratio;
+          // Check for overrides
           if (ref.ingredientOverrides && ref.ingredientOverrides[ing.name]) {
             qty = parseQuantity(ref.ingredientOverrides[ing.name].quantity);
           }
 
           const normalized = normalizeToBasics(qty, ing.unit);
           const key = ing.name.toUpperCase();
+
+          // Check if excluded
+          if (excludedOrderItems.includes(key)) {
+            if (!excludedList[key]) {
+              excludedList[key] = { total: normalized.value, base: normalized.base };
+            } else {
+              excludedList[key].total += normalized.value;
+            }
+            return; // Skip adding to main list
+          }
+
           const family = (ing.category || 'VARIOS').toUpperCase();
 
           if (!groupedList[family]) groupedList[family] = {};
@@ -124,7 +155,30 @@ export const MenuPlanner: React.FC<MenuPlannerProps> = ({
       });
     });
 
-    return Object.entries(groupedList).sort((a, b) => a[0].localeCompare(b[0]));
+    // 2. Add Extra Manual Items
+    extraOrderItems.forEach(item => {
+      const key = item.name.toUpperCase();
+      // If it's excluded, strictly speaking we could put it in excluded, but usually manual adds are meant to be ordered. 
+      // We'll assume manual adds override exclusion or are distinct.
+
+      const family = (item.family || 'VARIOS').toUpperCase();
+      const normalized = normalizeToBasics(item.quantity, item.unit);
+
+      if (!groupedList[family]) groupedList[family] = {};
+      if (!groupedList[family][key]) {
+        groupedList[family][key] = { total: normalized.value, base: normalized.base };
+      } else {
+        groupedList[family][key].total += normalized.value;
+      }
+    });
+
+    // Sort families
+    const sortedFamilies = Object.entries(groupedList).sort((a, b) => a[0].localeCompare(b[0]));
+
+    return {
+      active: sortedFamilies,
+      excluded: Object.entries(excludedList).sort((a, b) => a[0].localeCompare(b[0]))
+    };
   };
 
   return (
@@ -377,38 +431,149 @@ export const MenuPlanner: React.FC<MenuPlannerProps> = ({
                                 <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2 mb-4">
                                   <ClipboardList size={14} className="text-indigo-500" /> Checklist de Elaboraciones
                                 </h5>
-                                <div className="space-y-2">
-                                  {ref.checklist.map((item, cIdx) => (
-                                    <button
-                                      key={cIdx}
-                                      onClick={() => {
-                                        const next = [...ref.checklist];
-                                        next[cIdx].completed = !next[cIdx].completed;
-                                        setSelectedRecipes(prev => prev.map(p => p.recipeId === ref.recipeId ? { ...p, checklist: next } : p));
-                                      }}
-                                      className="w-full flex items-center gap-3 p-3 bg-white border border-slate-100 rounded-xl hover:translate-x-1 transition-all"
-                                    >
-                                      <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${item.completed ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-200 bg-slate-50'}`}>
-                                        {item.completed && <Check size={10} strokeWidth={4} />}
-                                      </div>
-                                      <span className={`text-[10px] font-black uppercase ${item.completed ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{item.name}</span>
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
 
-                              <div>
-                                <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2 mb-3">
-                                  <FileText size={14} className="text-indigo-500" /> Memoria del Servicio
-                                </h5>
-                                <textarea
-                                  value={ref.serviceMemory}
-                                  onChange={(e) => {
-                                    setSelectedRecipes(prev => prev.map(p => p.recipeId === ref.recipeId ? { ...p, serviceMemory: e.target.value } : p));
-                                  }}
-                                  placeholder="Observaciones, reparos o notas del servicio..."
-                                  className="w-full h-24 p-4 bg-white border border-slate-100 rounded-2xl outline-none text-[11px] font-medium font-serif italic text-slate-600 focus:ring-4 focus:ring-indigo-50 transition-all shadow-inner"
-                                />
+                                {/* Sub-Recipe Instructions Edit & Checklist */}
+                                <div className="space-y-4 mb-6">
+                                  {recipe.subRecipes.map(sub => {
+                                    const modInstructions = ref.subRecipeModifications?.[sub.id]?.instructions;
+                                    const displayText = modInstructions !== undefined ? modInstructions : sub.instructions;
+                                    const isEditing = modInstructions !== undefined;
+                                    const checklistItem = ref.checklist.find(c => c.id === sub.id);
+
+                                    return (
+                                      <div key={sub.id} className="bg-white p-4 rounded-xl border border-slate-100">
+                                        <div className="flex justify-between items-start mb-2">
+                                          <h6 className="font-bold text-xs uppercase text-slate-700">{sub.name}</h6>
+                                          <div className="flex gap-2">
+                                            <button
+                                              onClick={() => {
+                                                if (isEditing && confirm("¿Revertir cambios a original?")) {
+                                                  const nextMods = { ...ref.subRecipeModifications };
+                                                  delete nextMods[sub.id];
+                                                  setSelectedRecipes(prev => prev.map(p => p.recipeId === ref.recipeId ? { ...p, subRecipeModifications: nextMods } : p));
+                                                } else if (!isEditing) {
+                                                  const nextMods = { ...ref.subRecipeModifications, [sub.id]: { instructions: sub.instructions } };
+                                                  setSelectedRecipes(prev => prev.map(p => p.recipeId === ref.recipeId ? { ...p, subRecipeModifications: nextMods } : p));
+                                                }
+                                              }}
+                                              className={`p-1 rounded hover:bg-slate-100 ${isEditing ? 'text-amber-500' : 'text-slate-400'}`}
+                                              title={isEditing ? "Revertir a original" : "Editar instrucciones para este menú"}
+                                            >
+                                              <Edit2 size={12} />
+                                            </button>
+                                          </div>
+                                        </div>
+
+                                        {isEditing ? (
+                                          <textarea
+                                            value={displayText}
+                                            onChange={(e) => {
+                                              const nextMods = { ...ref.subRecipeModifications, [sub.id]: { instructions: e.target.value } };
+                                              setSelectedRecipes(prev => prev.map(p => p.recipeId === ref.recipeId ? { ...p, subRecipeModifications: nextMods } : p));
+                                            }}
+                                            className="w-full text-[10px] p-2 bg-amber-50 border border-amber-200 rounded-lg text-slate-700 font-medium h-24 focus:ring-2 focus:ring-amber-200 outline-none"
+                                          />
+                                        ) : (
+                                          <p className="text-[10px] text-slate-500 line-clamp-3 mb-2">{displayText}</p>
+                                        )}
+
+                                        {/* Built-in Checklist Item */}
+                                        {checklistItem && (
+                                          <button
+                                            onClick={() => {
+                                              const next = ref.checklist.map(c => c.id === sub.id ? { ...c, completed: !c.completed } : c);
+                                              setSelectedRecipes(prev => prev.map(p => p.recipeId === ref.recipeId ? { ...p, checklist: next } : p));
+                                            }}
+                                            className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all ${checklistItem.completed ? 'bg-indigo-50 text-indigo-900' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                                          >
+                                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${checklistItem.completed ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 bg-white'}`}>
+                                              {checklistItem.completed && <Check size={10} strokeWidth={4} />}
+                                            </div>
+                                            <span className={`text-[10px] font-black uppercase ${checklistItem.completed ? 'opacity-50 line-through' : ''}`}>Completado</span>
+                                          </button>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+
+                                {/* Manual Checklist Items */}
+                                <div className="space-y-2 mb-6">
+                                  <h6 className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Controles Adicionales</h6>
+                                  {ref.manualChecklist?.map((item, mIdx) => (
+                                    <div key={mIdx} className="flex items-center gap-2 group">
+                                      <button
+                                        onClick={() => {
+                                          const next = [...(ref.manualChecklist || [])];
+                                          next[mIdx].completed = !next[mIdx].completed;
+                                          setSelectedRecipes(prev => prev.map(p => p.recipeId === ref.recipeId ? { ...p, manualChecklist: next } : p));
+                                        }}
+                                        className="flex-grow flex items-center gap-3 p-2 bg-white border border-slate-100 rounded-lg"
+                                      >
+                                        <div className={`w-4 h-4 rounded border flex items-center justify-center ${item.completed ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-200 bg-slate-50'}`}>
+                                          {item.completed && <Check size={10} strokeWidth={4} />}
+                                        </div>
+                                        <span className={`text-[10px] font-bold uppercase ${item.completed ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{item.name}</span>
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          const next = (ref.manualChecklist || []).filter((_, i) => i !== mIdx);
+                                          setSelectedRecipes(prev => prev.map(p => p.recipeId === ref.recipeId ? { ...p, manualChecklist: next } : p));
+                                        }}
+                                        className="p-2 text-rose-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                      >
+                                        <Trash2 size={12} />
+                                      </button>
+                                    </div>
+                                  ))}
+
+                                  <div className="flex gap-2">
+                                    <input
+                                      id={`new-checklist-${ref.recipeId}`}
+                                      type="text"
+                                      placeholder="Nuevo punto de control..."
+                                      className="flex-grow px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-300"
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          const val = e.currentTarget.value.trim();
+                                          if (val) {
+                                            const next = [...(ref.manualChecklist || []), { id: Date.now().toString(), name: val, completed: false }];
+                                            setSelectedRecipes(prev => prev.map(p => p.recipeId === ref.recipeId ? { ...p, manualChecklist: next } : p));
+                                            e.currentTarget.value = '';
+                                          }
+                                        }
+                                      }}
+                                    />
+                                    <button
+                                      onClick={() => {
+                                        const input = document.getElementById(`new-checklist-${ref.recipeId}`) as HTMLInputElement;
+                                        const val = input.value.trim();
+                                        if (val) {
+                                          const next = [...(ref.manualChecklist || []), { id: Date.now().toString(), name: val, completed: false }];
+                                          setSelectedRecipes(prev => prev.map(p => p.recipeId === ref.recipeId ? { ...p, manualChecklist: next } : p));
+                                          input.value = '';
+                                        }
+                                      }}
+                                      className="px-3 bg-indigo-50 text-indigo-600 rounded-lg"
+                                    >
+                                      <Plus size={14} />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2 mb-3">
+                                    <FileText size={14} className="text-indigo-500" /> Memoria del Servicio
+                                  </h5>
+                                  <textarea
+                                    value={ref.serviceMemory}
+                                    onChange={(e) => {
+                                      setSelectedRecipes(prev => prev.map(p => p.recipeId === ref.recipeId ? { ...p, serviceMemory: e.target.value } : p));
+                                    }}
+                                    placeholder="Observaciones, reparos o notas del servicio..."
+                                    className="w-full h-24 p-4 bg-white border border-slate-100 rounded-2xl outline-none text-[11px] font-medium font-serif italic text-slate-600 focus:ring-4 focus:ring-indigo-50 transition-all shadow-inner"
+                                  />
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -516,7 +681,7 @@ export const MenuPlanner: React.FC<MenuPlannerProps> = ({
               </div>
             </div>
 
-            <div className="p-10 overflow-y-auto flex-grow print:p-0 print:overflow-visible bg-white">
+            <div className="overflow-y-auto flex-grow print:p-0 print:overflow-visible bg-white">
               <div className="mb-8 border-b-2 border-slate-900 pb-4 hidden print:block">
                 <div className="flex justify-between items-end">
                   <div>
@@ -530,48 +695,145 @@ export const MenuPlanner: React.FC<MenuPlannerProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 print:grid-cols-3 gap-x-8 gap-y-4 items-start">
-                {calculateShoppingList().map(([family, items]) => (
-                  <div key={family} className="break-inside-avoid mb-2 border border-slate-50 p-3 rounded-xl print:p-0 print:border-0">
-                    <h4 className="text-[9px] font-black text-white bg-slate-900 px-2 py-1 rounded mb-2 uppercase tracking-tighter inline-block">
-                      {family}
-                    </h4>
-                    <div className="space-y-0.5">
-                      {Object.entries(items).sort((a, b) => a[0].localeCompare(b[0])).map(([name, data]) => (
-                        <div key={name} className="flex justify-between items-baseline gap-1 group border-b border-slate-50 pb-0.5">
-                          <span className="text-[8px] font-bold text-slate-700 uppercase leading-none truncate flex-grow">{name}</span>
-                          <span className="text-[10px] font-black text-slate-900 whitespace-nowrap tabular-nums tracking-tighter">
-                            {formatNormalized(data.total, data.base)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+              {/* Add Manual Item UI */}
+              <div className="bg-indigo-50/50 p-6 border-b border-indigo-100 no-print">
+                <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-3">Añadir Extra al Pedido</h4>
+                <div className="flex gap-2 items-center">
+                  <input type="text" id="manual-item-name" placeholder="Producto..." className="flex-[2] px-4 py-2 rounded-xl border border-indigo-100 text-sm outline-none" />
+                  <input type="number" id="manual-item-qty" placeholder="Cant." className="w-20 px-4 py-2 rounded-xl border border-indigo-100 text-sm outline-none" />
+                  <select id="manual-item-unit" className="w-24 px-4 py-2 rounded-xl border border-indigo-100 text-sm outline-none bg-white">
+                    <option value="ud">Ud</option>
+                    <option value="kg">Kg</option>
+                    <option value="g">g</option>
+                    <option value="l">L</option>
+                    <option value="ml">ml</option>
+                  </select>
+                  <select id="manual-item-family" className="w-32 px-4 py-2 rounded-xl border border-indigo-100 text-sm outline-none bg-white">
+                    {settings.productFamilies?.map(f => <option key={f} value={f}>{f}</option>) || <option value="VARIOS">VARIOS</option>}
+                  </select>
+                  <button
+                    onClick={() => {
+                      const nameEl = document.getElementById('manual-item-name') as HTMLInputElement;
+                      const qtyEl = document.getElementById('manual-item-qty') as HTMLInputElement;
+                      const unitEl = document.getElementById('manual-item-unit') as HTMLSelectElement;
+                      const familyEl = document.getElementById('manual-item-family') as HTMLSelectElement;
+
+                      if (nameEl.value && qtyEl.value) {
+                        setExtraOrderItems(prev => [...prev, {
+                          name: nameEl.value,
+                          quantity: Number(qtyEl.value),
+                          unit: unitEl.value,
+                          family: familyEl.value
+                        }]);
+                        nameEl.value = '';
+                        qtyEl.value = '';
+                      }
+                    }}
+                    className="bg-indigo-600 text-white p-2 rounded-xl hover:bg-indigo-700"
+                  >
+                    <Plus size={20} />
+                  </button>
+                </div>
               </div>
 
-              {calculateShoppingList().length === 0 && (
-                <div className="text-center py-20">
-                  <AlertTriangle size={48} className="text-amber-200 mx-auto mb-4" />
-                  <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">No hay ingredientes validados para este servicio</p>
+              <div className="p-10 print:p-0 print:overflow-visible bg-white">
+                {/* Print Optimization: CSS Columns */}
+                <div className="hidden print:block" style={{ columnCount: 3, columnGap: '2rem' }}>
+                  {calculateShoppingList().active.map(([family, items]) => (
+                    <div key={family} className="break-inside-avoid mb-4">
+                      <h4 className="text-[9px] font-black text-slate-900 border-b border-slate-900 mb-1 uppercase tracking-tighter inline-block w-full">
+                        {family}
+                      </h4>
+                      <div className="space-y-0.5">
+                        {Object.entries(items).sort((a, b) => a[0].localeCompare(b[0])).map(([name, data]) => (
+                          <div key={name} className="flex justify-between items-baseline gap-1 text-[8px]">
+                            <span className="font-bold text-slate-700 uppercase truncate">{name}</span>
+                            <span className="font-black text-slate-900 whitespace-nowrap tabular-nums">
+                              {formatNormalized(data.total, data.base)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              )}
-            </div>
 
-            <div className="p-8 border-t border-slate-100 flex justify-between items-center bg-slate-50 no-print">
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <Info size={14} className="text-amber-500" /> Diseño extra-compacto optimizado para ahorro de papel (Multi-columna)
-              </p>
-              <button
-                onClick={() => setShowShoppingList(false)}
-                className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest hover:bg-slate-800 shadow-xl transition-all active:scale-95"
-              >
-                Cerrar Pedido
-              </button>
+                {/* Screen View */}
+                <div className="print:hidden">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4 items-start">
+                    {calculateShoppingList().active.map(([family, items]) => (
+                      <div key={family} className="break-inside-avoid mb-2 border border-slate-50 p-3 rounded-xl">
+                        <h4 className="text-[9px] font-black text-white bg-slate-900 px-2 py-1 rounded mb-2 uppercase tracking-tighter inline-block">
+                          {family}
+                        </h4>
+                        <div className="space-y-0.5">
+                          {Object.entries(items).sort((a, b) => a[0].localeCompare(b[0])).map(([name, data]) => (
+                            <div key={name} className="flex justify-between items-center gap-1 group border-b border-slate-50 pb-0.5">
+                              <span className="text-[8px] font-bold text-slate-700 uppercase leading-none truncate flex-grow flex items-center gap-2">
+                                {name}
+                                <button
+                                  onClick={() => setExcludedOrderItems(prev => [...prev, name])}
+                                  className="text-slate-200 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity" title="Excluir del pedido"
+                                >
+                                  <EyeOff size={10} />
+                                </button>
+                              </span>
+                              <span className="text-[10px] font-black text-slate-900 whitespace-nowrap tabular-nums tracking-tighter">
+                                {formatNormalized(data.total, data.base)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Excluded Section */}
+                  {calculateShoppingList().excluded.length > 0 && (
+                    <div className="mt-8 pt-8 border-t border-dashed border-slate-200 opacity-60">
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <Archive size={14} /> Excluidos de Compras
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4 items-start">
+                        {calculateShoppingList().excluded.map(([name, data]) => (
+                          <div key={name} className="flex justify-between items-center bg-slate-50 p-2 rounded">
+                            <span className="text-[9px] font-bold text-slate-500 uppercase decoration-slate-300">{name}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[9px] text-slate-400">{formatNormalized(data.total, data.base)}</span>
+                              <button
+                                onClick={() => setExcludedOrderItems(prev => prev.filter(i => i !== name))}
+                                className="text-emerald-500 hover:text-emerald-700" title="Volver a incluir"
+                              >
+                                <Plus size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {calculateShoppingList().active.length === 0 && calculateShoppingList().excluded.length === 0 && (
+                  <div className="text-center py-20">
+                    <AlertTriangle size={48} className="text-amber-200 mx-auto mb-4" />
+                    <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">No hay ingredientes validados para este servicio</p>
+                  </div>
+                )}
+                <div className="p-8 border-t border-slate-100 flex justify-between items-center bg-slate-50 no-print">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <Info size={14} className="text-amber-500" /> Diseño extra-compacto optimizado para ahorro de papel (Multi-columna)
+                  </p>
+                  <button
+                    onClick={() => setShowShoppingList(false)}
+                    className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest hover:bg-slate-800 shadow-xl transition-all active:scale-95"
+                  >
+                    Cerrar Pedido
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
       )}
-    </div>
-  );
+          </div>
+          );
 };
