@@ -1,0 +1,1430 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* ============================================
+   RESET & BASE STYLES
+   ============================================ */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  /* Color Palette - Modern Professional */
+  --color-primary: #059669;
+  /* Emerald Green (Darker for light mode) */
+  --color-secondary: #0f172a;
+  /* Keep dark for footers/contrast */
+  --color-accent: #2563eb;
+  /* Modern Blue (Darker for light mode) */
+
+  --color-bg-primary: #f8fafc;
+  /* Crudo / Sky Gray */
+  --color-bg-secondary: #f1f5f9;
+  --color-bg-tertiary: #e2e8f0;
+  --color-bg-card: #ffffff;
+  --color-bg-hover: #f1f5f9;
+
+  --color-text-primary: #1e293b;
+  --color-text-secondary: #475569;
+  --color-text-muted: #64748b;
+  --color-text-disabled: #94a3b8;
+
+  --color-border: #e2e8f0;
+  --color-border-light: #f1f5f9;
+  --color-success: #10B981;
+  --color-error: #EF4444;
+  --color-warning: #F59E0B;
+
+  /* Light Theme Specifics */
+  --surface-primary: #ffffff;
+  --surface-secondary: #f8fafc;
+
+  /* Refined Effects - Light Mode */
+  --glass-bg: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(15, 23, 42, 0.08);
+  --glass-shadow: 0 10px 40px -10px rgba(15, 23, 42, 0.1);
+  --soft-glow: 0 0 10px rgba(16, 185, 129, 0.1);
+  --blue-glow: 0 0 10px rgba(59, 130, 246, 0.1);
+
+  /* Spacing & Radii */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  /* Typography */
+  --font-display: 'Outfit', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 2rem;
+  --font-size-4xl: 2.5rem;
+
+  /* Transitions */
+  --transition-base: 0.3s ease;
+  --transition-slow: 0.5s ease;
+}
+
+/* ============================================
+   DARK MODE OVERRIDES
+   ============================================ */
+.dark-mode {
+  /* Colores base más contrastados */
+  --color-bg-primary: #0f172a;
+  --color-bg-secondary: #1e293b;
+  --color-bg-tertiary: #334155;
+
+  /* Textos con mayor contraste */
+  --color-text-primary: #f1f5f9;
+  --color-text-secondary: #cbd5e1;
+  --color-text-muted: #94a3b8;
+
+  /* Bordes más visibles */
+  --color-border: #334155;
+  --color-border-light: #475569;
+
+  /* Sombras adaptadas */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.7);
+
+  /* Glass effect mejorado para dark mode */
+  --glass-bg: rgba(30, 41, 59, 0.7);
+  --glass-border: rgba(148, 163, 184, 0.1);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+}
+
+/* Mejoras específicas para elementos con glass effect en dark mode */
+.dark-mode .glass-card {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(148, 163, 184, 0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Asegurar que los textos sean siempre legibles */
+.dark-mode h1,
+.dark-mode h2,
+.dark-mode h3,
+.dark-mode h4,
+.dark-mode h5,
+.dark-mode h6 {
+  color: #f1f5f9;
+  text-shadow: none;
+}
+
+.dark-mode p,
+.dark-mode span,
+.dark-mode label {
+  color: #cbd5e1;
+  text-shadow: none;
+}
+
+/* Inputs y formularios en dark mode */
+.dark-mode input,
+.dark-mode textarea,
+.dark-mode select {
+  background: #1e293b;
+  border-color: #475569;
+  color: #f1f5f9;
+}
+
+.dark-mode input:focus,
+.dark-mode textarea:focus,
+.dark-mode select:focus {
+  border-color: var(--color-primary);
+  background: #0f172a;
+}
+
+/* Navbar en dark mode - CRÍTICO para visibilidad */
+.dark-mode .navbar {
+  background: rgba(15, 23, 42, 0.95) !important;
+  border-bottom-color: #334155 !important;
+  backdrop-filter: blur(12px);
+}
+
+.dark-mode .navbar.scrolled {
+  background: rgba(15, 23, 42, 0.98) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+}
+
+/* Textos del navbar en dark mode */
+.dark-mode .nav-link {
+  color: #f1f5f9 !important;
+}
+
+.dark-mode .site-name {
+  color: #60a5fa !important;
+  /* Azul brillante */
+}
+
+.dark-mode .site-author {
+  color: #3b82f6 !important;
+  /* Azul más intenso */
+}
+
+.dark-mode .nav-link:hover,
+.dark-mode .nav-link.active {
+  color: var(--color-primary) !important;
+}
+
+/* Botones en dark mode */
+.dark-mode .btn {
+  border-color: #475569;
+}
+
+.dark-mode .btn-primary {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.dark-mode .btn-outline {
+  background: transparent;
+  color: #cbd5e1;
+  border-color: #475569;
+}
+
+.dark-mode .btn-outline:hover {
+  background: rgba(148, 163, 184, 0.1);
+  border-color: #94a3b8;
+}
+
+.dark-mode .btn-ghost {
+  color: #cbd5e1;
+}
+
+.dark-mode .btn-ghost:hover {
+  background: rgba(148, 163, 184, 0.1);
+}
+
+/* Hero section en dark mode */
+.dark-mode .hero-title {
+  color: #f1f5f9 !important;
+}
+
+.dark-mode .hero-subtitle {
+  color: #94a3b8 !important;
+}
+
+/* Cards y contenedores en dark mode */
+.dark-mode .card,
+.dark-mode .glass-card {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: #334155;
+}
+
+/* Badges y pills en dark mode */
+.dark-mode .badge,
+.dark-mode .badge-modern {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+/* ============================================
+   ALLERGEN BADGES - PILL STYLE
+   ============================================ */
+.allergen-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.allergen-badge-pill {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px !important;
+  border: 1.5px solid !important;
+  border-radius: 6px !important;
+  font-size: 0.7rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.3px;
+  cursor: help;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.allergen-badge-pill:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.allergen-icon-small {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.allergen-label {
+  line-height: 1;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* ============================================
+   SCROLLBAR STYLING
+   ============================================ */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-bg-primary);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+@keyframes scan {
+  from {
+    top: -100%;
+  }
+
+  to {
+    top: 100%;
+  }
+}
+
+@keyframes pulse-glow {
+  0% {
+    box-shadow: 0 0 5px var(--color-primary);
+  }
+
+  50% {
+    box-shadow: 0 0 20px var(--color-primary);
+  }
+
+  100% {
+    box-shadow: 0 0 5px var(--color-primary);
+  }
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-lg);
+}
+
+.card {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-base);
+  position: relative;
+  overflow: hidden;
+}
+
+.card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(0deg, transparent 70%, rgba(255, 46, 46, 0.05) 100%);
+  pointer-events: none;
+}
+
+.card:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--neon-glow);
+  transform: translateY(-5px);
+}
+
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+/* ============================================
+   BUTTONS
+   ============================================ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  padding: 0.75rem 1.75rem;
+  font-family: var(--font-display);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  text-decoration: none;
+  white-space: nowrap;
+  outline: none;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: white;
+  box-shadow: var(--neon-glow);
+  clip-path: polygon(5% 0, 100% 0, 100% 70%, 95% 100%, 0 100%, 0% 30%);
+}
+
+.btn-primary:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 30px var(--color-primary);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--color-accent);
+  border: 1px solid var(--color-accent);
+  box-shadow: inset 0 0 5px var(--color-accent);
+}
+
+.btn-secondary:hover {
+  background: var(--color-accent);
+  color: var(--color-secondary);
+  box-shadow: var(--cyan-glow);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+}
+
+.btn-outline:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  box-shadow: var(--neon-glow);
+}
+
+.btn-ghost {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-text-secondary);
+}
+
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--color-text-primary);
+}
+
+/* ============================================
+   FORMS
+   ============================================ */
+.form-group {
+  margin-bottom: var(--spacing-lg);
+}
+
+.form-label {
+  display: block;
+  margin-bottom: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-family: var(--font-display);
+}
+
+.form-input,
+.form-textarea,
+.form-select {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: var(--font-size-base);
+  font-family: var(--font-body);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-base);
+  outline: none;
+}
+
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus {
+  border-color: var(--color-primary);
+  background: #fff;
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+/* ============================================
+   BADGES
+   ============================================ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge-primary {
+  background: var(--color-primary);
+  color: white;
+}
+
+.badge-secondary {
+  background: var(--color-secondary);
+  color: white;
+}
+
+.badge-success {
+  background: rgba(72, 187, 120, 0.2);
+  color: var(--color-success);
+  border: 1px solid rgba(72, 187, 120, 0.3);
+}
+
+.badge-warning {
+  background: rgba(236, 201, 75, 0.2);
+  color: var(--color-warning);
+  border: 1px solid rgba(236, 201, 75, 0.3);
+}
+
+/* ============================================
+   DIVIDER
+   ============================================ */
+.divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: var(--spacing-lg) 0;
+}
+
+/* ============================================
+   TEXT UTILITIES
+   ============================================ */
+.text-primary {
+  color: var(--color-primary);
+}
+
+.text-secondary {
+  color: var(--color-text-secondary);
+}
+
+.text-muted {
+  color: var(--color-text-muted);
+}
+
+.text-success {
+  color: var(--color-success);
+}
+
+.text-error {
+  color: var(--color-error);
+}
+
+.text-warning {
+  color: var(--color-warning);
+}
+
+.text-xs {
+  font-size: var(--font-size-xs);
+}
+
+.text-sm {
+  font-size: var(--font-size-sm);
+}
+
+.text-base {
+  font-size: var(--font-size-base);
+}
+
+.text-lg {
+  font-size: var(--font-size-lg);
+}
+
+.text-xl {
+  font-size: var(--font-size-xl);
+}
+
+.text-2xl {
+  font-size: var(--font-size-2xl);
+}
+
+.text-3xl {
+  font-size: var(--font-size-3xl);
+}
+
+.font-light {
+  font-weight: 300;
+}
+
+.font-normal {
+  font-weight: 400;
+}
+
+.font-medium {
+  font-weight: 500;
+}
+
+.font-semibold {
+  font-weight: 600;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+.font-extrabold {
+  font-weight: 800;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-left {
+  text-align: left;
+}
+
+.text-right {
+  text-align: right;
+}
+
+/* ============================================
+   SPACING UTILITIES
+   ============================================ */
+.mt-0 {
+  margin-top: 0;
+}
+
+.mt-1 {
+  margin-top: var(--spacing-sm);
+}
+
+.mt-2 {
+  margin-top: var(--spacing-md);
+}
+
+.mt-3 {
+  margin-top: var(--spacing-lg);
+}
+
+.mt-4 {
+  margin-top: var(--spacing-xl);
+}
+
+.mb-0 {
+  margin-bottom: 0;
+}
+
+.mb-1 {
+  margin-bottom: var(--spacing-sm);
+}
+
+.mb-2 {
+  margin-bottom: var(--spacing-md);
+}
+
+.mb-3 {
+  margin-bottom: var(--spacing-lg);
+}
+
+.mb-4 {
+  margin-bottom: var(--spacing-xl);
+}
+
+.p-0 {
+  padding: 0;
+}
+
+.p-1 {
+  padding: var(--spacing-sm);
+}
+
+.p-2 {
+  padding: var(--spacing-md);
+}
+
+.p-3 {
+  padding: var(--spacing-lg);
+}
+
+.p-4 {
+  padding: var(--spacing-xl);
+}
+
+/* ============================================
+   FLEX UTILITIES
+   ============================================ */
+.flex {
+  display: flex;
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.items-start {
+  align-items: flex-start;
+}
+
+.items-end {
+  align-items: flex-end;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.justify-end {
+  justify-content: flex-end;
+}
+
+.gap-1 {
+  gap: var(--spacing-sm);
+}
+
+.gap-2 {
+  gap: var(--spacing-md);
+}
+
+.gap-3 {
+  gap: var(--spacing-lg);
+}
+
+.gap-4 {
+  gap: var(--spacing-xl);
+}
+
+/* ============================================
+   TABS COMPONENT
+   ============================================ */
+.tabs-container {
+  display: flex;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-lg);
+  background: var(--color-bg-secondary);
+  border-bottom: 2px solid var(--color-border);
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: 0.75rem 1.5rem;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  position: relative;
+}
+
+.tab:hover:not(:disabled) {
+  color: var(--color-text-primary);
+  background: var(--color-bg-tertiary);
+}
+
+.tab.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  background: var(--color-bg-tertiary);
+}
+
+.tab:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ============================================
+   MENU PLANNER - GRID LAYOUT
+   ============================================ */
+.planner-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-xl);
+  height: calc(100vh - 250px);
+  padding: var(--spacing-xl);
+}
+
+.planner-column {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.planner-column-header {
+  padding: var(--spacing-lg);
+  background: var(--color-bg-tertiary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.planner-column-header h2 {
+  font-size: var(--font-size-xl);
+  margin-bottom: var(--spacing-md);
+  color: var(--color-text-primary);
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: 0.75rem 1rem;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-base);
+}
+
+.search-box:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
+}
+
+.search-box input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+}
+
+.search-box input::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* ============================================
+   RECIPE LIST (Left Column)
+   ============================================ */
+.recipe-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-md);
+}
+
+.recipe-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-md);
+  transition: all var(--transition-base);
+}
+
+.recipe-item:hover {
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-border-light);
+  transform: translateX(4px);
+}
+
+.recipe-item-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  flex: 1;
+}
+
+.recipe-item-image {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--color-border);
+}
+
+.recipe-item h3 {
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.recipe-category {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+/* ============================================
+   MENU HEADER FORM (Right Column)
+   ============================================ */
+.menu-header-form {
+  padding: var(--spacing-lg);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.menu-header-form .form-group {
+  margin-bottom: var(--spacing-md);
+}
+
+.menu-header-form .form-group:last-child {
+  margin-bottom: 0;
+}
+
+.menu-header-form label {
+  display: block;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.menu-header-form .input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  transition: all var(--transition-base);
+}
+
+.menu-header-form .input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
+  outline: none;
+}
+
+/* ============================================
+   MENU DISHES LIST (Right Column)
+   ============================================ */
+.menu-dishes-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-md);
+}
+
+.menu-dish-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-md);
+  transition: all var(--transition-base);
+}
+
+.menu-dish-item:hover {
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-border-light);
+}
+
+.menu-dish-order {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: var(--color-primary);
+  color: white;
+  font-weight: 700;
+  font-size: var(--font-size-lg);
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.menu-dish-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  flex: 1;
+}
+
+.menu-dish-image {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--color-border);
+}
+
+.menu-dish-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+/* ============================================
+   EMPTY STATE
+   ============================================ */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-2xl);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.empty-state svg {
+  margin-bottom: var(--spacing-md);
+  opacity: 0.5;
+}
+
+/* ============================================
+   DOCUMENT CONTAINER
+   ============================================ */
+.document-container {
+  padding: var(--spacing-xl);
+  background: var(--color-bg-secondary);
+  min-height: calc(100vh - 250px);
+}
+
+.document-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--spacing-xl);
+}
+
+.printable-document {
+  background: white;
+  color: #000;
+  padding: 3rem;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.document-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 3px solid #000;
+}
+
+.document-logo {
+  max-width: 120px;
+  max-height: 80px;
+  object-fit: contain;
+}
+
+.document-title-section {
+  flex: 1;
+  text-align: center;
+  padding: 0 2rem;
+}
+
+.document-title-section h1 {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #000;
+  margin-bottom: 0.5rem;
+  letter-spacing: 1px;
+}
+
+.document-title-section h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  margin-bottom: 0.5rem;
+}
+
+.document-date {
+  font-size: 1rem;
+  color: #666;
+  font-style: italic;
+}
+
+.document-footer {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid #ddd;
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+/* ============================================
+   SERVICE ORDER TABLE
+   ============================================ */
+.service-order-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  font-size: 0.9rem;
+}
+
+.service-order-table thead {
+  background: #f5f5f5;
+}
+
+.service-order-table th {
+  padding: 0.75rem 0.5rem;
+  text-align: left;
+  font-weight: 700;
+  color: #000;
+  border: 1px solid #ddd;
+  font-size: 0.85rem;
+}
+
+.service-order-table td {
+  padding: 0.75rem 0.5rem;
+  border: 1px solid #ddd;
+  color: #333;
+  vertical-align: top;
+}
+
+.service-order-table tbody tr:nth-child(even) {
+  background: #fafafa;
+}
+
+.service-order-table tbody tr:hover {
+  background: #f0f0f0;
+}
+
+.description-cell {
+  max-width: 250px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+/* ============================================
+   ALLERGEN MATRIX TABLE
+   ============================================ */
+.allergen-matrix {
+  max-width: 100%;
+}
+
+.allergen-table-wrapper {
+  overflow-x: auto;
+  margin: 1.5rem 0;
+}
+
+.allergen-matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  min-width: 1000px;
+}
+
+.allergen-matrix-table thead {
+  background: #f5f5f5;
+}
+
+.allergen-matrix-table th {
+  padding: 0.75rem 0.5rem;
+  border: 1px solid #ddd;
+  font-weight: 700;
+  color: #000;
+}
+
+.allergen-matrix-table .dish-column {
+  text-align: left;
+  min-width: 200px;
+  position: sticky;
+  left: 0;
+  background: #f5f5f5;
+  z-index: 10;
+}
+
+.allergen-matrix-table .allergen-column {
+  min-width: 70px;
+  text-align: center;
+}
+
+.allergen-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.allergen-icon {
+  font-size: 1.5rem;
+}
+
+.allergen-name {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.allergen-matrix-table td {
+  padding: 0.75rem 0.5rem;
+  border: 1px solid #ddd;
+  text-align: center;
+  color: #333;
+}
+
+.allergen-matrix-table .dish-name {
+  text-align: left;
+  font-weight: 500;
+  position: sticky;
+  left: 0;
+  background: white;
+  z-index: 5;
+}
+
+.allergen-matrix-table tbody tr:nth-child(even) .dish-name {
+  background: #fafafa;
+}
+
+.allergen-matrix-table tbody tr:nth-child(even) {
+  background: #fafafa;
+}
+
+.allergen-matrix-table tbody tr:hover {
+  background: #f0f0f0;
+}
+
+.allergen-matrix-table tbody tr:hover .dish-name {
+  background: #f0f0f0;
+}
+
+.allergen-cell {
+  font-size: 1.2rem;
+}
+
+.allergen-mark {
+  color: #e53e3e;
+  font-weight: 900;
+  font-size: 1.5rem;
+}
+
+.allergen-empty {
+  color: #ccc;
+  font-size: 1rem;
+}
+
+/* ============================================
+   ALLERGEN LEGEND
+   ============================================ */
+.allergen-legend {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+
+.allergen-legend h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: #000;
+}
+
+.allergen-legend-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+
+.allergen-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #333;
+}
+
+.allergen-legend-item .allergen-icon {
+  font-size: 1.2rem;
+}
+
+/* ============================================
+   ALLERGEN DISCLAIMER
+   ============================================ */
+.allergen-disclaimer {
+  background: #fff3cd;
+  border: 2px solid #ffc107;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 2rem;
+}
+
+.allergen-disclaimer p {
+  margin-bottom: 0.75rem;
+  color: #856404;
+  line-height: 1.6;
+}
+
+.allergen-disclaimer p:last-child {
+  margin-bottom: 0;
+}
+
+.legal-text {
+  font-size: 0.75rem;
+  font-style: italic;
+  color: #666;
+}
+
+/* ============================================
+   PRINT STYLES
+   ============================================ */
+@media print {
+  body {
+    background: white;
+    color: black;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .card {
+    box-shadow: none;
+    border: 1px solid #ddd;
+  }
+
+  .printable-document {
+    box-shadow: none;
+    padding: 1rem;
+  }
+
+  .document-header {
+    page-break-after: avoid;
+  }
+
+  .service-order-table,
+  .allergen-matrix-table {
+    page-break-inside: auto;
+  }
+
+  .service-order-table tr,
+  .allergen-matrix-table tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  .service-order-table thead,
+  .allergen-matrix-table thead {
+    display: table-header-group;
+  }
+
+  .allergen-legend {
+    page-break-before: avoid;
+  }
+
+  /* Landscape for allergen matrix */
+  .allergen-matrix {
+    width: 100%;
+  }
+
+  @page {
+    margin: 1cm;
+  }
+}
+/* ============================================
+   PRINT UTILITIES - GLOBAL
+   ============================================ */
+@media print {
+  .screen-only,
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .page-break {
+    page-break-after: always;
+  }
+  
+  .page-break-before {
+    page-break-before: always;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+@media screen {
+  .print-only {
+    display: none !important;
+  }
+}
+

@@ -1,0 +1,435 @@
+[
+    {
+        "id": "prod_0001",
+        "name": "Solomillo de ternera",
+        "category": "carnes",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_0002",
+        "name": "Entrecot de buey",
+        "category": "carnes",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_0003",
+        "name": "Filete de ternera",
+        "category": "carnes",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_0004",
+        "name": "Carne picada de ternera 80/20",
+        "category": "carnes",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_0005",
+        "name": "Lomo bajo de cerdo",
+        "category": "carnes",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_0006",
+        "name": "Secreto ibérico",
+        "category": "carnes",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_0007",
+        "name": "Presa ibérica",
+        "category": "carnes",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_0008",
+        "name": "Costillas de cerdo",
+        "category": "carnes",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_0009",
+        "name": "Panceta fresca",
+        "category": "carnes",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_0010",
+        "name": "Pechuga de pollo entera sin piel",
+        "category": "carnes",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_0011",
+        "name": "Muslo de pollo deshuesado",
+        "category": "carnes",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_0012",
+        "name": "Alitas de pollo",
+        "category": "carnes",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_0013",
+        "name": "Hígado de pollo",
+        "category": "carnes",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_0014",
+        "name": "Pato entero",
+        "category": "carnes",
+        "unit": "unidad",
+        "allergens": []
+    },
+    {
+        "id": "prod_0015",
+        "name": "Foie fresco",
+        "category": "carnes",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_0181",
+        "name": "Salmón fresco en filetes sin espinas",
+        "category": "pescados",
+        "unit": "kg",
+        "allergens": [
+            "PES"
+        ]
+    },
+    {
+        "id": "prod_0182",
+        "name": "Salmón entero limpio",
+        "category": "pescados",
+        "unit": "kg",
+        "allergens": [
+            "PES"
+        ]
+    },
+    {
+        "id": "prod_0183",
+        "name": "Salmón ahumado natural",
+        "category": "pescados",
+        "unit": "kg",
+        "allergens": [
+            "PES"
+        ]
+    },
+    {
+        "id": "prod_0184",
+        "name": "Merluza fresca entera limpia",
+        "category": "pescados",
+        "unit": "kg",
+        "allergens": [
+            "PES"
+        ]
+    },
+    {
+        "id": "prod_0185",
+        "name": "Merluza en filetes sin piel",
+        "category": "pescados",
+        "unit": "kg",
+        "allergens": [
+            "PES"
+        ]
+    },
+    {
+        "id": "prod_0341",
+        "name": "Langostinos crudos pelados",
+        "category": "mariscos",
+        "unit": "kg",
+        "allergens": [
+            "CRU"
+        ]
+    },
+    {
+        "id": "prod_0342",
+        "name": "Langostinos crudos con cáscara",
+        "category": "mariscos",
+        "unit": "kg",
+        "allergens": [
+            "CRU"
+        ]
+    },
+    {
+        "id": "prod_0343",
+        "name": "Langostinos cocidos pelados",
+        "category": "mariscos",
+        "unit": "kg",
+        "allergens": [
+            "CRU"
+        ]
+    },
+    {
+        "id": "prod_0369",
+        "name": "Mejillones frescos en red",
+        "category": "mariscos",
+        "unit": "kg",
+        "allergens": [
+            "MOL"
+        ]
+    },
+    {
+        "id": "prod_0372",
+        "name": "Almejas finas frescas",
+        "category": "mariscos",
+        "unit": "kg",
+        "allergens": [
+            "MOL"
+        ]
+    },
+    {
+        "id": "prod_0481",
+        "name": "Lechuga romana",
+        "category": "verduras",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_0482",
+        "name": "Lechuga iceberg",
+        "category": "verduras",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_0496",
+        "name": "Apio entero",
+        "category": "verduras",
+        "unit": "kg",
+        "allergens": [
+            "API"
+        ]
+    },
+    {
+        "id": "prod_0499",
+        "name": "Zanahoria",
+        "category": "verduras",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_0504",
+        "name": "Cebolla blanca",
+        "category": "verduras",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_0509",
+        "name": "Ajo entero",
+        "category": "verduras",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_0512",
+        "name": "Tomate de rama",
+        "category": "verduras",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_0521",
+        "name": "Calabacín",
+        "category": "verduras",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_0524",
+        "name": "Berenjena",
+        "category": "verduras",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_0527",
+        "name": "Judías verdes finas",
+        "category": "verduras",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_0531",
+        "name": "Edamame (soja verde)",
+        "category": "verduras",
+        "unit": "kg",
+        "allergens": [
+            "SOY"
+        ]
+    },
+    {
+        "id": "prod_0731",
+        "name": "Manzana Golden",
+        "category": "frutas",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_0742",
+        "name": "Naranja navel",
+        "category": "frutas",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_0748",
+        "name": "Limón",
+        "category": "frutas",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_0765",
+        "name": "Plátano de Canarias",
+        "category": "frutas",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_0778",
+        "name": "Fresa",
+        "category": "frutas",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_0795",
+        "name": "Almendras crudas enteras",
+        "category": "frutas",
+        "unit": "kg",
+        "allergens": [
+            "FRA"
+        ]
+    },
+    {
+        "id": "prod_0798",
+        "name": "Nueces crudas enteras",
+        "category": "frutas",
+        "unit": "kg",
+        "allergens": [
+            "FRA"
+        ]
+    },
+    {
+        "id": "prod_0951",
+        "name": "Leche entera de vaca pasteurizada",
+        "category": "lacteos",
+        "unit": "L",
+        "allergens": [
+            "LAC"
+        ]
+    },
+    {
+        "id": "prod_0952",
+        "name": "Leche semidesnatada de vaca",
+        "category": "lacteos",
+        "unit": "L",
+        "allergens": [
+            "LAC"
+        ]
+    },
+    {
+        "id": "prod_0961",
+        "name": "Nata para cocinar (35% MG)",
+        "category": "lacteos",
+        "unit": "L",
+        "allergens": [
+            "LAC"
+        ]
+    },
+    {
+        "id": "prod_0965",
+        "name": "Mantequilla sin sal",
+        "category": "lacteos",
+        "unit": "kg",
+        "allergens": [
+            "LAC"
+        ]
+    },
+    {
+        "id": "prod_0973",
+        "name": "Yogur natural entero",
+        "category": "lacteos",
+        "unit": "kg",
+        "allergens": [
+            "LAC"
+        ]
+    },
+    {
+        "id": "prod_0981",
+        "name": "Queso Manchego DOP curado",
+        "category": "lacteos",
+        "unit": "kg",
+        "allergens": [
+            "LAC"
+        ]
+    },
+    {
+        "id": "prod_1005",
+        "name": "Queso Mozzarella fresca",
+        "category": "lacteos",
+        "unit": "kg",
+        "allergens": [
+            "LAC"
+        ]
+    },
+    {
+        "id": "prod_1031",
+        "name": "Huevos camperos (unidad)",
+        "category": "lacteos",
+        "unit": "unidad",
+        "allergens": [
+            "HUE"
+        ]
+    },
+    {
+        "id": "prod_1101",
+        "name": "Espinacas congeladas",
+        "category": "congelados",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_1103",
+        "name": "Guisantes congelados",
+        "category": "congelados",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_1151",
+        "name": "Patatas fritas congeladas",
+        "category": "congelados",
+        "unit": "kg",
+        "allergens": []
+    },
+    {
+        "id": "prod_1157",
+        "name": "Croquetas de jamón congeladas",
+        "category": "congelados",
+        "unit": "kg",
+        "allergens": [
+            "GLU",
+            "LAC",
+            "HUE"
+        ]
+    }
+]
